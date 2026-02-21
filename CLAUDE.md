@@ -28,6 +28,7 @@ The project uses a dual naming convention:
 TempDLM (Temporary Download Manager) is a cross-platform desktop application built with Electron and React that prevents Downloads folder clutter by letting users set auto-deletion timers when files are downloaded.
 
 **Core Workflow:**
+
 1. File system watcher (chokidar) detects new files in Downloads folder
 2. Dialog appears asking user how long to keep the file (5m, 30m, 2h, 1d, Never, Custom)
 3. Timer schedules deletion to Recycle Bin (not permanent deletion)
@@ -38,6 +39,7 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 ### Electron Multi-Process Model
 
 **Main Process (Node.js)** - `src/main/`
+
 - Single source of truth for application state
 - File system watching and event debouncing (500ms)
 - Timer scheduling and persistence (node-schedule)
@@ -46,12 +48,14 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 - IPC handlers for renderer communication
 
 **Renderer Process (Chromium)** - `src/renderer/`
+
 - React-based UI with TypeScript
 - Queue visualization with virtual scrolling (react-window)
 - User interaction handling
 - Communicates with Main via IPC bridge
 
 **Preload Script** - `src/preload/`
+
 - Secure IPC bridge using contextBridge
 - Exposes minimal, validated API to renderer
 - Enforces context isolation and disables node integration in renderer
@@ -59,6 +63,7 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 ### Key Data Models
 
 **QueueItem** - Core entity representing a managed file
+
 - Tracks file metadata, status, scheduled deletion time
 - Supports clustering (grouping related downloads)
 - Handles snoozing for files in use
@@ -66,6 +71,7 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 **Status Flow:** `pending` → `scheduled` → `deleting` → `deleted` (or `failed`/`snoozed`)
 
 **UserSettings** - Persistent configuration
+
 - Downloads folder path, launch at startup, default timers
 - Whitelist rules (extension/pattern-based)
 - UI preferences (theme, dialog position, notifications)
@@ -73,6 +79,7 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 ### Critical Workflows
 
 **New File Detection (fileWatcher.ts):**
+
 1. chokidar detects file → 500ms debounce for multi-file downloads
 2. Check whitelist rules (may auto-handle without dialog)
 3. Check clustering (files within 2s window grouped together)
@@ -80,6 +87,7 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 5. Show NewFileDialog for timer selection
 
 **Scheduled Deletion (deletionEngine.ts):**
+
 1. Timer expires → Check file existence
 2. Check file lock (proper-lockfile + platform-specific detection)
 3. If locked: Show SnoozeDialog (retry 10min, up to 3x)
@@ -87,6 +95,7 @@ TempDLM (Temporary Download Manager) is a cross-platform desktop application bui
 5. Update QueueItem status, persist to electron-store
 
 **Startup Reconciliation:**
+
 - Load persisted queue from electron-store
 - Re-register timers for future deletions
 - Process overdue deletions (staggered 500ms apart)
@@ -121,30 +130,36 @@ npm run lint:fix     # Auto-fix issues
 ## Implementation Guidelines
 
 ### Platform Priority
+
 Windows (Priority 1) → macOS (Priority 2) → Linux (Priority 3)
 
 Start with Windows-only implementation, ensuring clean abstraction layers for future cross-platform support.
 
 ### Security Requirements
+
 - Context isolation enabled, node integration disabled in renderer
 - Validate all file paths to prevent directory traversal
 - Only access user-specified Downloads folder (no escalated privileges)
 - Input validation on all IPC handlers
 
 ### Performance Targets
+
 - Startup time: < 2 seconds to tray
 - Memory usage (idle): < 80 MB
 - File detection latency: < 500ms from creation to dialog
 - Queue rendering (1000 items): < 100ms with virtual scrolling
 
 ### File Operation Safety
+
 - ALWAYS use Recycle Bin (via `trash` package), never permanent deletion
 - Detect file locks before deletion attempts (proper-lockfile)
 - Implement retry logic with user notification
 - Gracefully handle ENOENT (file deleted externally), EBUSY (in use), EACCES (permissions)
 
 ### Whitelist System
+
 Three tiers of rules:
+
 1. Extension-based (e.g., `.exe`, `.pdf`)
 2. Pattern-based with wildcards (e.g., `temp_*`)
 3. Folder-based (e.g., subdirectories)
@@ -152,18 +167,21 @@ Three tiers of rules:
 Actions: `never-delete` or `auto-delete-after` with preset timer
 
 ### Download Clustering Algorithm
+
 Group files arriving within 2-second window into single dialog:
+
 - Same parent directory + 3+ files = archive extraction
 - Sequential naming patterns = browser multi-download
 - Show batch dialog with option to "Handle individually"
 
 ### IPC Communication Pattern
+
 ```typescript
 // Main -> Renderer events
-'file:new', 'file:deleted', 'file:in-use', 'queue:updated'
+("file:new", "file:deleted", "file:in-use", "queue:updated");
 
 // Renderer -> Main invocations
-'file:set-timer', 'file:cancel', 'file:snooze', 'settings:update'
+("file:set-timer", "file:cancel", "file:snooze", "settings:update");
 ```
 
 Always use `ipcRenderer.invoke()` for request/response, `ipcRenderer.on()` for events.
@@ -171,6 +189,7 @@ Always use `ipcRenderer.invoke()` for request/response, `ipcRenderer.on()` for e
 ## Phase 1 MVP Scope (Windows Only)
 
 Focus areas for initial implementation:
+
 1. Core file watching with chokidar
 2. Timer dialog and scheduling system
 3. Queue UI with search/sort/filter
@@ -180,6 +199,7 @@ Focus areas for initial implementation:
 7. Startup with Windows option
 
 **Explicitly NOT in Phase 1:**
+
 - Browser extension integration (deferred to Phase 3)
 - Download clustering (Phase 2)
 - Pattern-based whitelist (Phase 2)
@@ -189,6 +209,7 @@ Focus areas for initial implementation:
 ## Key Technical Decisions
 
 **Why Electron over Tauri/Flutter/.NET MAUI:**
+
 - Gentlest learning curve (web stack)
 - Mature ecosystem with battle-tested file system APIs
 - Excellent installer support (electron-builder)
@@ -196,12 +217,14 @@ Focus areas for initial implementation:
 - Trade-off: Larger bundle (~80-100MB) vs Tauri (~10MB) but acceptable
 
 **Why file system watching over browser interception:**
+
 - Browser extension would require per-browser development
 - Detection delay (200-500ms after download) is imperceptible
 - Avoids complexity of native messaging and browser store publishing
 - Can revisit in Phase 3 if user feedback demands
 
 **Why Recycle Bin over permanent deletion:**
+
 - Safety net for accidental timer selection
 - Aligns with user expectations
 - Cross-platform via `trash` package
@@ -214,6 +237,7 @@ Focus areas for initial implementation:
 - `docs/technical-challenges.md` - Solutions to 8 implementation challenges
 
 Refer to `docs/specifications.md` for:
+
 - Complete dependency list with rationales
 - Data model schemas (QueueItem, UserSettings, WhitelistRule)
 - UI mockups and keyboard shortcuts
@@ -223,6 +247,7 @@ Refer to `docs/specifications.md` for:
 - electron-builder configuration
 
 Refer to `docs/technical-challenges.md` for:
+
 - Download clustering algorithm
 - Multi-strategy file lock detection
 - Startup reconciliation logic

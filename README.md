@@ -24,7 +24,7 @@ Choose from 5 minutes, 30 minutes, 2 hours, 1 day, or "Never" - and forget about
 
 ## Screenshots
 
-*Coming soon*
+_Coming soon_
 
 ## Installation
 
@@ -34,7 +34,7 @@ Download the latest installer from [Releases](https://github.com/your-username/t
 
 ### macOS / Linux
 
-*Coming in future releases*
+_Coming in future releases_
 
 ## Development
 
@@ -64,7 +64,7 @@ npm run dist:win
 
 ### Project Structure
 
-```
+```plain
 tempdlm/
 ├── src/
 │   ├── main/           # Electron main process
@@ -109,6 +109,7 @@ tempdlm/
 ## Roadmap
 
 ### Phase 1 (MVP) - Windows
+
 - [x] Project specification
 - [ ] Core file watching
 - [ ] Timer dialog and management
@@ -117,12 +118,14 @@ tempdlm/
 - [ ] Windows installer
 
 ### Phase 2 - Enhanced Features
+
 - [ ] macOS support
 - [ ] Download clustering
 - [ ] Statistics dashboard
 - [ ] Keyboard shortcuts
 
 ### Phase 3 - Extended Platform
+
 - [ ] Linux support
 - [ ] Browser extension (optional)
 - [ ] Multi-folder monitoring

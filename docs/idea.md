@@ -23,17 +23,20 @@ TempDLM monitors the Downloads folder and presents a non-intrusive dialog when n
 ## Target Users
 
 ### Primary Persona: The Productive Professional
+
 - Downloads many files daily (documents, images, installers)
 - Values a clean, organized system
 - Doesn't want to think about file management
 - Needs quick, frictionless interactions
 
 ### Secondary Persona: The Storage-Conscious User
+
 - Has limited disk space (laptop, older hardware)
 - Actively manages storage but finds it tedious
 - Wants automation that respects their preferences
 
 ### Tertiary Persona: The Privacy-Aware User
+
 - Downloads sensitive documents (financial, medical, legal)
 - Wants assurance that temporary files don't persist
 - Values the Recycle Bin safety net
@@ -43,6 +46,7 @@ TempDLM monitors the Downloads folder and presents a non-intrusive dialog when n
 **"Set it and forget it" file cleanup that respects user intent.**
 
 Unlike bulk auto-delete tools, TempDLM:
+
 1. **Asks at the right moment** - when the file arrives, context is fresh
 2. **Respects file-by-file decisions** - not one-size-fits-all rules
 3. **Provides safety nets** - Recycle Bin, snooze for in-use files, whitelist
@@ -51,16 +55,19 @@ Unlike bulk auto-delete tools, TempDLM:
 ## Success Metrics
 
 ### User Experience Metrics
+
 - Time from download to timer-set decision: < 3 seconds
 - Dialog dismissal rate without action: < 10%
 - User-reported satisfaction with defaults: > 80%
 
 ### Technical Metrics
+
 - System resource usage: < 50MB RAM, < 1% CPU idle
 - File detection latency: < 500ms from file creation
 - Startup time: < 2 seconds to tray
 
 ### Adoption Metrics
+
 - Installation completion rate: > 90%
 - 30-day retention rate: > 70%
 - User-initiated uninstall rate: < 15%
@@ -68,6 +75,7 @@ Unlike bulk auto-delete tools, TempDLM:
 ## Scope
 
 ### In Scope (MVP - Phase 1)
+
 - Windows 10/11 support
 - Downloads folder monitoring with configurable path
 - New file detection dialog with timer options (5m, 30m, 2h, 1d, Never, Custom)
@@ -81,6 +89,7 @@ Unlike bulk auto-delete tools, TempDLM:
 - Basic whitelist by file extension
 
 ### In Scope (Phase 2)
+
 - macOS support
 - Pattern-based whitelist (regex, wildcards)
 - Download clustering (group files from same event)
@@ -90,6 +99,7 @@ Unlike bulk auto-delete tools, TempDLM:
 - Dark/light theme
 
 ### In Scope (Phase 3)
+
 - Linux support
 - Browser extension integration (optional)
 - Multiple folder monitoring
@@ -97,6 +107,7 @@ Unlike bulk auto-delete tools, TempDLM:
 - Localization (i18n)
 
 ### Out of Scope (Not Planned)
+
 - Browser download interception (see Key Assumptions)
 - Cloud storage integration
 - File compression or archiving
@@ -107,17 +118,20 @@ Unlike bulk auto-delete tools, TempDLM:
 ## Key Assumptions
 
 ### Technical Assumptions
+
 1. **File system monitoring is sufficient** - We assume watching the Downloads folder for new files provides adequate detection without needing browser integration
 2. **Recycle Bin API is reliable** - Platform APIs for moving to trash work consistently across supported OS versions
 3. **Single user context** - The app runs for one user account at a time
 
 ### User Behavior Assumptions
+
 1. Users will respond to dialogs promptly (within 10 seconds)
 2. Default timer options cover 80%+ of use cases
 3. Users prefer Recycle Bin over permanent deletion
 4. Most users have a single primary Downloads folder
 
 ### Business Assumptions
+
 1. MIT license is appropriate for community adoption
 2. No monetization required for v1
 3. Single developer can maintain the project
@@ -125,20 +139,23 @@ Unlike bulk auto-delete tools, TempDLM:
 ## Risks and Unknowns
 
 ### High Risk
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Accidental deletion of important files | User data loss, reputation damage | Always use Recycle Bin, confirm on sensitive types, undo capability |
-| Dialog fatigue from frequent downloads | Users disable app or ignore dialogs | Smart defaults, "Remember for this type" option, batch dialogs |
-| Performance impact from file watching | System slowdown, battery drain | Efficient polling/event-based watching, configurable intervals |
+
+| Risk                                   | Impact                              | Mitigation                                                          |
+| -------------------------------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| Accidental deletion of important files | User data loss, reputation damage   | Always use Recycle Bin, confirm on sensitive types, undo capability |
+| Dialog fatigue from frequent downloads | Users disable app or ignore dialogs | Smart defaults, "Remember for this type" option, batch dialogs      |
+| Performance impact from file watching  | System slowdown, battery drain      | Efficient polling/event-based watching, configurable intervals      |
 
 ### Medium Risk
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Cross-platform complexity delays MVP | Extended timeline, scope creep | Start Windows-only, clean abstraction layer for future |
+
+| Risk                                   | Impact                           | Mitigation                                                |
+| -------------------------------------- | -------------------------------- | --------------------------------------------------------- |
+| Cross-platform complexity delays MVP   | Extended timeline, scope creep   | Start Windows-only, clean abstraction layer for future    |
 | File locking conflicts with other apps | Failed deletions, user confusion | Robust retry logic, clear messaging, snooze functionality |
-| Installer/distribution challenges | Adoption barriers | Use established tooling (Electron Forge, NSIS) |
+| Installer/distribution challenges      | Adoption barriers                | Use established tooling (Electron Forge, NSIS)            |
 
 ### Unknowns to Investigate
+
 1. **Optimal polling interval** - Balance between responsiveness and resource usage
 2. **Dialog positioning strategy** - Where to show without interrupting workflow
 3. **Whitelist UX** - How to make pattern configuration accessible to non-technical users
@@ -146,6 +163,7 @@ Unlike bulk auto-delete tools, TempDLM:
 ## "Catch Before Download" Analysis
 
 ### User Request
+
 The user expressed interest in catching downloads BEFORE they land in the Downloads folder, potentially intercepting the browser's download process.
 
 ### Feasibility Assessment
@@ -171,6 +189,7 @@ The user expressed interest in catching downloads BEFORE they land in the Downlo
    - Process monitoring: Can detect browser download processes but not intercept
 
 ### Recommendation
+
 **Use file system watching for MVP.** The dialog will appear within 500ms of file completion, which is imperceptible for most downloads and only seconds behind for large files. If user feedback strongly demands pre-download interception, consider a Phase 3 optional browser extension.
 
 ## Next Steps
