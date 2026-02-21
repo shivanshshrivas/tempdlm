@@ -329,8 +329,7 @@ type RendererToMain = {
 // preload.ts - Expose safe API to renderer
 contextBridge.exposeInMainWorld("tempdlm", {
   // File operations
-  setTimer: (id: string, timer: string | Date) =>
-    ipcRenderer.invoke("file:set-timer", id, timer),
+  setTimer: (id: string, timer: string | Date) => ipcRenderer.invoke("file:set-timer", id, timer),
   cancelDeletion: (id: string) => ipcRenderer.invoke("file:cancel", id),
 
   // Event subscriptions
