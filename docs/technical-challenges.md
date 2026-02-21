@@ -647,15 +647,15 @@ function getStartupSetting(): boolean {
 
 ## Summary: Risk Mitigation Matrix
 
-| Challenge                 | Risk Level | Solution                                         | Status           |
-| ------------------------- | ---------- | ------------------------------------------------ | ---------------- |
-| Pre-download interception | Low        | Defer to Phase 3, use file watching              | Deferred         |
-| Download clustering       | Medium     | Time-window algorithm                            | Phase 2 planned  |
-| File lock detection       | Medium     | Two-layer: Restart Manager + window-title scan   | **Implemented**  |
-| Missed deletions          | Low        | Startup reconciliation                           | **Implemented**  |
-| Whitelist usability       | Medium     | Extension-based (Phase 1), presets (Phase 2)     | Partial (Phase 1)|
-| Dialog positioning        | Low        | Configurable positions                           | Phase 2 planned  |
-| Large queue performance   | Medium     | Virtualization (react-window)                    | **Implemented**  |
-| Installer distribution    | Low        | Electron Builder + NSIS                          | **Implemented**  |
+| Challenge                 | Risk Level | Solution                                       | Status            |
+| ------------------------- | ---------- | ---------------------------------------------- | ----------------- |
+| Pre-download interception | Low        | Defer to Phase 3, use file watching            | Deferred          |
+| Download clustering       | Medium     | Time-window algorithm                          | Phase 2 planned   |
+| File lock detection       | Medium     | Two-layer: Restart Manager + window-title scan | **Implemented**   |
+| Missed deletions          | Low        | Startup reconciliation                         | **Implemented**   |
+| Whitelist usability       | Medium     | Extension-based (Phase 1), presets (Phase 2)   | Partial (Phase 1) |
+| Dialog positioning        | Low        | Configurable positions                         | Phase 2 planned   |
+| Large queue performance   | Medium     | Virtualization (react-window)                  | **Implemented**   |
+| Installer distribution    | Low        | Electron Builder + NSIS                        | **Implemented**   |
 
 All identified challenges have viable solutions. The architecture is designed to be maintainable and extensible for future requirements.
