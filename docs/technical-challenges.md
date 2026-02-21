@@ -48,13 +48,13 @@ This document addresses specific technical challenges identified during the spec
    ```
 
 4. **Complexity vs Benefit:**
-   | Factor | Browser Extension | File System Watching |
-   |--------|-------------------|---------------------|
-   | Development time | 3-4 weeks per browser | 1 week total |
-   | Maintenance burden | High (browser updates) | Low |
-   | User setup | Install app + extension | Install app only |
-   | Detection speed | Instant | 200-500ms after completion |
-   | Reliability | Medium (extension can break) | High |
+   | Factor             | Browser Extension            | File System Watching       |
+   |--------------------|------------------------------|----------------------------|
+   | Development time   | 3-4 weeks per browser        | 1 week total               |
+   | Maintenance burden | High (browser updates)       | Low                        |
+   | User setup         | Install app + extension      | Install app only           |
+   | Detection speed    | Instant                      | 200-500ms after completion |
+   | Reliability        | Medium (extension can break) | High                       |
 
 ### Recommendation
 
