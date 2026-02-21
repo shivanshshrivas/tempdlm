@@ -147,68 +147,60 @@ const clusterPatterns: ClusterPattern[] = [
 
 Attempting to delete a file that's open in another application (e.g., PDF viewer, Word) will fail. How do we detect this proactively?
 
-### Solution: Multi-Strategy Lock Detection
+A subtler problem: some apps (e.g., Notepad) read a file into memory and **immediately release the file handle**. A handle-based lock check says "not locked", but the file is clearly in active use — deleting it while the user is editing would be destructive.
 
-```typescript
-import lockfile from "proper-lockfile";
-import { exec } from "child_process";
+### Solution: Two-Layer Detection
 
-async function isFileLocked(filePath: string): Promise<boolean> {
-  // Strategy 1: Try to acquire exclusive lock
-  try {
-    const release = await lockfile.lock(filePath, {
-      stale: 1000,
-      retries: 0,
-    });
-    await release();
-    return false; // Successfully locked = not in use
-  } catch (e) {
-    if (e.code === "ELOCKED") {
-      return true;
-    }
-  }
+**Layer 1 — Windows Restart Manager API (authoritative)**
 
-  // Strategy 2: Platform-specific check (Windows)
-  if (process.platform === "win32") {
-    return await checkWindowsFileLock(filePath);
-  }
+Uses PowerShell inline C# to call the Windows Restart Manager API, which reports every process currently holding a file handle. This is the same mechanism Windows uses to show "This file is open in……" dialogs.
 
-  // Strategy 3: Try rename as final fallback
-  return await tryRenameTest(filePath);
-}
-
-async function checkWindowsFileLock(filePath: string): Promise<boolean> {
-  // Use handle.exe from Sysinternals or PowerShell
-  return new Promise((resolve) => {
-    const ps = `
-      $file = "${filePath.replace(/\\/g, "\\\\")}"
-      try {
-        $stream = [System.IO.File]::Open($file, 'Open', 'ReadWrite', 'None')
-        $stream.Close()
-        Write-Output "unlocked"
-      } catch {
-        Write-Output "locked"
-      }
-    `;
-    exec(`powershell -Command "${ps}"`, (err, stdout) => {
-      resolve(stdout.trim() === "locked");
-    });
-  });
-}
+```csharp
+// PowerShell inline C# (spawnSync, 3s timeout)
+Add-Type @"
+  using System;
+  using System.Runtime.InteropServices;
+  // ... RmGetList / RmRegisterResources P/Invoke
+"@
+// Returns exit code 0 = unlocked, 1 = locked
+// stdout = newline-separated process names when locked
 ```
 
-### Lock Detection Workflow
+If locked → snooze the item (retry up to 3× at 10-minute intervals, then mark failed).
+
+**Layer 2 — Window-Title Heuristic (catches handle-less readers)**
+
+After Layer 1 says "not locked", run a second PowerShell command:
+
+```powershell
+Get-Process | Where-Object { $_.MainWindowTitle -like '*filename*' } |
+  Select-Object -ExpandProperty Name
+```
+
+3-second timeout. Returns process names (e.g., `notepad`) whose visible window title contains the file name. **Fail-open**: any error (timeout, access denied) returns an empty list and deletion proceeds normally.
+
+If a match is found:
+
+1. Set item status to `confirming`
+2. Send `file:confirm-delete` IPC event to renderer with the process names and a 15s timeout
+3. Show `ConfirmDeleteDialog` (amber-themed, distinguishable from the blue NewFileDialog)
+4. User choices:
+   - **Keep file** → cancel item, return to `pending`
+   - **Delete anyway** → fall through to trash
+   - **Timeout (15s)** → auto-delete (user intentionally set the timer; timeout = implicit confirmation)
+
+### Full Deletion Workflow
 
 ```plain
-1. Timer expires, deletion triggered
-2. Check if file locked
-3. If locked:
-   a. Show "File in use" notification
-   b. Display source app if detectable
-   c. Offer: [Snooze 10 min] [Force Delete*] [Cancel]
-   d. *Force Delete: Warn user, attempt anyway
-4. If not locked:
-   a. Proceed with trash operation
+1. Timer expires
+2. File existence check → if gone, mark deleted
+3. Layer 1: Restart Manager API
+   → locked: snooze (retry ≤3×, then failed)
+4. Layer 2: Window-title heuristic
+   → match: status = 'confirming', send IPC, await 15s
+     - keep  → cancel
+     - delete/timeout → continue
+5. trash(filePath) → mark deleted
 ```
 
 ### Retry Logic
@@ -217,37 +209,31 @@ async function checkWindowsFileLock(filePath: string): Promise<boolean> {
 const RETRY_CONFIG = {
   maxAutoRetries: 3,
   retryDelayMs: 10 * 60 * 1000, // 10 minutes
-  notifyOnEachRetry: true,
   finalAction: "mark-failed" as const,
 };
-
-async function attemptDeletion(item: QueueItem): Promise<DeletionResult> {
-  for (let attempt = 0; attempt <= RETRY_CONFIG.maxAutoRetries; attempt++) {
-    if (await isFileLocked(item.filePath)) {
-      if (attempt < RETRY_CONFIG.maxAutoRetries) {
-        await scheduleRetry(item, RETRY_CONFIG.retryDelayMs);
-        notifyUser(`${item.fileName} is in use. Will retry in 10 minutes.`);
-        return {
-          status: "snoozed",
-          retryAt: Date.now() + RETRY_CONFIG.retryDelayMs,
-        };
-      } else {
-        return {
-          status: "failed",
-          reason: "File remained locked after 3 attempts",
-        };
-      }
-    }
-
-    try {
-      await trash(item.filePath);
-      return { status: "deleted" };
-    } catch (e) {
-      // Handle other errors
-    }
-  }
-}
 ```
+
+After 3 snooze cycles the item is marked `failed` and stays visible in the queue for the user to handle manually.
+
+### Confirmation Timeout Design
+
+15 seconds was chosen as the timeout because:
+
+- Short enough that the app doesn't feel "stuck" if the user is away
+- Long enough to read the dialog and make a decision
+- Defaults to **delete** (not keep) because the user explicitly scheduled the deletion; a timeout is implicit confirmation
+
+### Status Map
+
+| Status       | Meaning                                              |
+| ------------ | ---------------------------------------------------- |
+| `pending`    | Timer not yet set                                    |
+| `scheduled`  | Timer running                                        |
+| `snoozed`    | Layer 1 locked — waiting for retry                   |
+| `confirming` | Layer 2 heuristic match — awaiting user confirmation |
+| `deleting`   | Trash operation in progress                          |
+| `deleted`    | Successfully moved to Recycle Bin                    |
+| `failed`     | Exhausted retries or unrecoverable error             |
 
 ---
 
@@ -661,15 +647,15 @@ function getStartupSetting(): boolean {
 
 ## Summary: Risk Mitigation Matrix
 
-| Challenge                 | Risk Level | Solution                            | Confidence |
-| ------------------------- | ---------- | ----------------------------------- | ---------- |
-| Pre-download interception | Low        | Defer to Phase 3, use file watching | High       |
-| Download clustering       | Medium     | Time-window algorithm               | High       |
-| File lock detection       | Medium     | Multi-strategy detection            | Medium     |
-| Missed deletions          | Low        | Startup reconciliation              | High       |
-| Whitelist usability       | Medium     | Presets + custom rules              | High       |
-| Dialog positioning        | Low        | Configurable positions              | High       |
-| Large queue performance   | Medium     | Virtualization                      | High       |
-| Installer distribution    | Low        | Electron Builder + NSIS             | High       |
+| Challenge                 | Risk Level | Solution                                         | Status           |
+| ------------------------- | ---------- | ------------------------------------------------ | ---------------- |
+| Pre-download interception | Low        | Defer to Phase 3, use file watching              | Deferred         |
+| Download clustering       | Medium     | Time-window algorithm                            | Phase 2 planned  |
+| File lock detection       | Medium     | Two-layer: Restart Manager + window-title scan   | **Implemented**  |
+| Missed deletions          | Low        | Startup reconciliation                           | **Implemented**  |
+| Whitelist usability       | Medium     | Extension-based (Phase 1), presets (Phase 2)     | Partial (Phase 1)|
+| Dialog positioning        | Low        | Configurable positions                           | Phase 2 planned  |
+| Large queue performance   | Medium     | Virtualization (react-window)                    | **Implemented**  |
+| Installer distribution    | Low        | Electron Builder + NSIS                          | **Implemented**  |
 
-All identified challenges have viable solutions with high confidence. The architecture is designed to be maintainable and extensible for future requirements.
+All identified challenges have viable solutions. The architecture is designed to be maintainable and extensible for future requirements.
