@@ -48,13 +48,13 @@ This document addresses specific technical challenges identified during the spec
    ```
 
 4. **Complexity vs Benefit:**
-   | Factor             | Browser Extension            | File System Watching       |
+   | Factor | Browser Extension | File System Watching |
    |--------------------|------------------------------|----------------------------|
-   | Development time   | 3-4 weeks per browser        | 1 week total               |
-   | Maintenance burden | High (browser updates)       | Low                        |
-   | User setup         | Install app + extension      | Install app only           |
-   | Detection speed    | Instant                      | 200-500ms after completion |
-   | Reliability        | Medium (extension can break) | High                       |
+   | Development time | 3-4 weeks per browser | 1 week total |
+   | Maintenance burden | High (browser updates) | Low |
+   | User setup | Install app + extension | Install app only |
+   | Detection speed | Instant | 200-500ms after completion |
+   | Reliability | Medium (extension can break) | High |
 
 ### Recommendation
 
@@ -361,10 +361,7 @@ const WHITELIST_PRESETS = [
 ];
 
 // Matching logic
-function matchesWhitelist(
-  filePath: string,
-  rules: WhitelistRule[],
-): WhitelistRule | null {
+function matchesWhitelist(filePath: string, rules: WhitelistRule[]): WhitelistRule | null {
   const fileName = path.basename(filePath);
   const ext = path.extname(filePath).toLowerCase();
   const dir = path.dirname(filePath);
@@ -467,27 +464,14 @@ async function getDialogBounds(position: DialogPosition): Promise<Rectangle> {
 
     case "bottom-right":
       return {
-        x:
-          primaryDisplay.workArea.x +
-          primaryDisplay.workArea.width -
-          DIALOG_WIDTH -
-          MARGIN,
-        y:
-          primaryDisplay.workArea.y +
-          primaryDisplay.workArea.height -
-          DIALOG_HEIGHT -
-          MARGIN,
+        x: primaryDisplay.workArea.x + primaryDisplay.workArea.width - DIALOG_WIDTH - MARGIN,
+        y: primaryDisplay.workArea.y + primaryDisplay.workArea.height - DIALOG_HEIGHT - MARGIN,
         width: DIALOG_WIDTH,
         height: DIALOG_HEIGHT,
       };
 
     case "near-cursor":
-      return positionNearPoint(
-        cursor,
-        activeDisplay.workArea,
-        DIALOG_WIDTH,
-        DIALOG_HEIGHT,
-      );
+      return positionNearPoint(cursor, activeDisplay.workArea, DIALOG_WIDTH, DIALOG_HEIGHT);
 
     case "near-tray":
       // Windows: bottom-right, macOS: top-right
