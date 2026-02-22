@@ -31,7 +31,8 @@ Pick 5 minutes, 30 minutes, 2 hours, 1 day, or Never - then forget about it. Whe
 
 Download the latest installer from [Releases](https://github.com/shivanshshrivas/tempdlm/releases).
 
-> [!NOTE] Requires Windows 10 or 11.
+> [!NOTE]
+> Requires Windows 10 or 11.
 
 ## License
 
