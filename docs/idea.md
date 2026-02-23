@@ -132,7 +132,7 @@ Unlike bulk auto-delete tools, TempDLM:
 
 ### Business Assumptions
 
-1. MIT license is appropriate for community adoption
+1. CC BY-NC-ND 4.0 (Source-Available) license — personal use permitted, no derivatives or commercial use
 2. No monetization required for v1
 3. Single developer can maintain the project
 
