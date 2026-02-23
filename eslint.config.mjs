@@ -38,6 +38,6 @@ export default tseslint.config(
 
   // Ignore built output and test setup files from lint
   {
-    ignores: ["dist/**", "dist-electron/**", "release/**", "node_modules/**"],
+    ignores: ["dist/**", "dist-electron/**", "release/**", "node_modules/**", "LICENSE"],
   },
 );
