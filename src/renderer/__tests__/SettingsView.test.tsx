@@ -8,7 +8,7 @@ import { UserSettings } from "../../shared/types";
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 
 const mockGetSettings = vi.fn();
-const mockUpdateSettings = vi.fn().mockResolvedValue(undefined);
+const mockUpdateSettings = vi.fn().mockResolvedValue({ success: true });
 const mockPickFolder = vi.fn().mockResolvedValue(null);
 
 const baseSettings: UserSettings = {
@@ -112,6 +112,20 @@ describe("SettingsView", () => {
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
       await waitFor(() => expect(screen.getByText("Settings saved.")).toBeInTheDocument());
     });
+
+    it("shows error message when save is rejected by main process", async () => {
+      mockUpdateSettings.mockResolvedValueOnce({
+        success: false,
+        error: "downloadsFolder must be a directory",
+      });
+      render(<SettingsView />);
+      await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent("downloadsFolder must be a directory"),
+      );
+      expect(screen.queryByText("Settings saved.")).not.toBeInTheDocument();
+    });
   });
 
   describe("default timer", () => {
@@ -157,6 +171,35 @@ describe("SettingsView", () => {
       await waitFor(() => screen.getByRole("button", { name: "Add" }));
       await userEvent.click(screen.getByRole("button", { name: "Add" }));
       expect(screen.getByText("No rules added.")).toBeInTheDocument();
+    });
+
+    it("rejects invalid extension format and shows error", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByLabelText("New whitelist rule value"));
+      await userEvent.type(screen.getByLabelText("New whitelist rule value"), "notanext");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+      expect(screen.getByRole("alert")).toHaveTextContent('Must be a file extension like ".pdf"');
+      expect(screen.getByText("No rules added.")).toBeInTheDocument();
+    });
+
+    it("rejects path traversal in rule value", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByLabelText("New whitelist rule value"));
+      await userEvent.type(screen.getByLabelText("New whitelist rule value"), "../../../etc");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByText("No rules added.")).toBeInTheDocument();
+    });
+
+    it("clears validation error when input changes", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByLabelText("New whitelist rule value"));
+      await userEvent.type(screen.getByLabelText("New whitelist rule value"), "bad");
+      await userEvent.click(screen.getByRole("button", { name: "Add" }));
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      await userEvent.clear(screen.getByLabelText("New whitelist rule value"));
+      await userEvent.type(screen.getByLabelText("New whitelist rule value"), ".pdf");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("removes a rule", async () => {

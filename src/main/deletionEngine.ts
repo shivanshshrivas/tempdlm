@@ -127,7 +127,7 @@ function isFileInWindowTitle(fileName: string): string[] {
 
   return output
     .split(/\r?\n/)
-    .map((s) => s.trim())
+    .map((s) => s.trim().slice(0, 32))
     .filter(Boolean);
 }
 
@@ -255,15 +255,23 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
       win.focus();
     }
 
+    // Cap process names: show at most 3, each truncated to 32 chars (already
+    // done by isFileInWindowTitle), and append "…and N more" if there are extras.
+    const MAX_DISPLAY_PROCS = 3;
+    const displayedProcesses = matchingProcesses.slice(0, MAX_DISPLAY_PROCS);
+    const extraCount = matchingProcesses.length - displayedProcesses.length;
+    const processNamesForDialog =
+      extraCount > 0 ? [...displayedProcesses, `…and ${extraCount} more`] : displayedProcesses;
+
     const confirmPayload: ConfirmDeletePayload = {
       item: getQueueItem(itemId)!,
-      processNames: matchingProcesses,
+      processNames: processNamesForDialog,
       timeoutMs: CONFIRM_TIMEOUT_MS,
       confirmationStartedAt: Date.now(),
     };
     win.webContents.send(IPC_EVENTS.FILE_CONFIRM_DELETE, confirmPayload);
     win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
-    showConfirmDeleteNotification(confirmPayload.item, matchingProcesses);
+    showConfirmDeleteNotification(confirmPayload.item, displayedProcesses);
 
     const decision = await waitForConfirmation(itemId, CONFIRM_TIMEOUT_MS);
 

@@ -38,6 +38,8 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
     onDismiss();
   }
 
+  const MAX_MINUTES = 40_320; // 28 days
+
   function handleCustomSubmit() {
     const num = parseFloat(customValue);
     if (!customValue || isNaN(num) || num <= 0) {
@@ -56,6 +58,11 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
       case "days":
         minutes = num * 1440;
         break;
+    }
+
+    if (minutes > MAX_MINUTES) {
+      setCustomError("Maximum is 28 days (40,320 minutes)");
+      return;
     }
 
     window.tempdlm.setTimer({ itemId: item.id, minutes });
@@ -139,6 +146,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
             <input
               type="number"
               min="1"
+              max="40320"
               value={customValue}
               onChange={(e) => handleCustomValueChange(e.target.value)}
               placeholder="Amount"

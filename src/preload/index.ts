@@ -17,9 +17,15 @@ import {
 const api = {
   // ── Queries ────────────────────────────────────────────────────────────────
 
-  getQueue: (): Promise<QueueItem[]> => ipcRenderer.invoke(IPC_INVOKE.QUEUE_GET),
+  getQueue: async (): Promise<QueueItem[]> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.QUEUE_GET);
+    return res.data as QueueItem[];
+  },
 
-  getSettings: (): Promise<UserSettings> => ipcRenderer.invoke(IPC_INVOKE.SETTINGS_GET),
+  getSettings: async (): Promise<UserSettings> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.SETTINGS_GET);
+    return res.data as UserSettings;
+  },
 
   // ── Commands ───────────────────────────────────────────────────────────────
 
@@ -32,8 +38,12 @@ const api = {
   snoozeItem: (payload: SnoozePayload): Promise<void> =>
     ipcRenderer.invoke(IPC_INVOKE.FILE_SNOOZE, payload),
 
-  updateSettings: (settings: Partial<UserSettings>): Promise<void> =>
-    ipcRenderer.invoke(IPC_INVOKE.SETTINGS_UPDATE, settings),
+  updateSettings: async (
+    settings: Partial<UserSettings>,
+  ): Promise<{ success: boolean; error?: string }> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.SETTINGS_UPDATE, settings);
+    return res as { success: boolean; error?: string };
+  },
 
   removeItem: (payload: { itemId: string }): Promise<void> =>
     ipcRenderer.invoke(IPC_INVOKE.FILE_REMOVE, payload),
@@ -41,7 +51,10 @@ const api = {
   confirmDeleteResponse: (payload: ConfirmResponsePayload): Promise<void> =>
     ipcRenderer.invoke(IPC_INVOKE.FILE_CONFIRM_RESPONSE, payload),
 
-  pickFolder: (): Promise<string | null> => ipcRenderer.invoke("dialog:pick-folder"),
+  pickFolder: async (): Promise<string | null> => {
+    const res = await ipcRenderer.invoke("dialog:pick-folder");
+    return res.data as string | null;
+  },
 
   // ── Event subscriptions ────────────────────────────────────────────────────
   // Returns an unsubscribe function.

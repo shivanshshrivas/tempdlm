@@ -202,5 +202,29 @@ describe("NewFileDialog", () => {
       await userEvent.type(screen.getByLabelText("Custom duration amount"), "5");
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
+
+    it("rejects a custom timer above 28 days (40320 minutes)", async () => {
+      render(<NewFileDialog item={makeItem()} onDismiss={vi.fn()} />);
+      await userEvent.click(screen.getByText("Custom…"));
+      await userEvent.selectOptions(screen.getByLabelText("Custom duration unit"), "days");
+      await userEvent.type(screen.getByLabelText("Custom duration amount"), "29");
+      await userEvent.click(screen.getByText("Set timer"));
+      expect(screen.getByRole("alert")).toHaveTextContent("Maximum is 28 days");
+      expect(mockSetTimer).not.toHaveBeenCalled();
+    });
+
+    it("accepts exactly 28 days (40320 minutes)", async () => {
+      const onDismiss = vi.fn();
+      render(<NewFileDialog item={makeItem()} onDismiss={onDismiss} />);
+      await userEvent.click(screen.getByText("Custom…"));
+      await userEvent.selectOptions(screen.getByLabelText("Custom duration unit"), "days");
+      await userEvent.type(screen.getByLabelText("Custom duration amount"), "28");
+      await userEvent.click(screen.getByText("Set timer"));
+      expect(mockSetTimer).toHaveBeenCalledWith({
+        itemId: "test-item-1",
+        minutes: 40320,
+      });
+      expect(onDismiss).toHaveBeenCalled();
+    });
   });
 });
