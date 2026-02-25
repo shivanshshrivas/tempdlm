@@ -38,7 +38,7 @@ This document outlines the planned evolution of TempDLM from its Windows-only MV
 - **Pattern-based whitelist** — wildcard rules (e.g., `temp_*`) and folder-based rules in addition to extension-based
 - **Configurable dialog positioning** — bottom-right, near-tray, near-cursor, center-active-monitor
 - **Auto-update** — `electron-updater` with GitHub Releases as the update source
-- **Tray icon with badge** — actual icon with file count badge instead of empty icon placeholder
+- **Tray icon badge** — file count badge overlay on tray icon
 - **Notification integration** — native Windows toast notifications for scheduled/completed deletions
 - **Statistics view** — files managed, space reclaimed over time
 - **Export/import settings** — JSON export of whitelist rules and preferences
