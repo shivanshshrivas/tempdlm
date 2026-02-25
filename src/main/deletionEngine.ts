@@ -1,9 +1,9 @@
 import fs from "fs";
 import { spawnSync } from "child_process";
-import { BrowserWindow } from "electron";
+import { BrowserWindow, Notification } from "electron";
 import * as schedule from "node-schedule";
 import { QueueItem, IPC_EVENTS, ConfirmDeletePayload } from "../shared/types";
-import { getQueueItem, patchQueueItem, getQueue } from "./store";
+import { getQueueItem, patchQueueItem, getQueue, getSettings } from "./store";
 
 // trash is ESM-only. We load it once at startup via initDeletionEngine()
 // and hold a reference here so vi.mock('trash') can intercept it in tests.
@@ -28,6 +28,10 @@ const CONFIRM_TIMEOUT_MS = 15_000;
 
 // Maps itemId → scheduled job
 const jobs = new Map<string, schedule.Job>();
+
+// Keeps active Notification instances alive until clicked/closed so GC doesn't
+// destroy the click listener before the user interacts with the notification.
+const activeNotifications = new Set<Electron.Notification>();
 
 // Maps itemId → pending confirmation resolver
 interface PendingConfirmation {
@@ -134,12 +138,12 @@ function isFileInWindowTitle(fileName: string): string[] {
  * dialog, or after CONFIRM_TIMEOUT_MS (defaulting to 'delete' since the user
  * intentionally set the timer).
  */
-function waitForConfirmation(itemId: string): Promise<"delete" | "keep"> {
+function waitForConfirmation(itemId: string, timeoutMs: number): Promise<"delete" | "keep"> {
   return new Promise<"delete" | "keep">((resolve) => {
     const timer = setTimeout(() => {
       pendingConfirmations.delete(itemId);
       resolve("delete");
-    }, CONFIRM_TIMEOUT_MS);
+    }, timeoutMs);
 
     pendingConfirmations.set(itemId, { resolve, timer });
   });
@@ -154,6 +158,41 @@ export function resolveConfirmation(itemId: string, decision: "delete" | "keep")
   clearTimeout(pending.timer);
   pendingConfirmations.delete(itemId);
   pending.resolve(decision);
+}
+
+// ─── Notification helpers ─────────────────────────────────────────────────────
+
+function showSnoozeNotification(item: QueueItem, win: BrowserWindow): void {
+  const settings = getSettings();
+  if (!settings.showNotifications) return;
+  if (!Notification.isSupported()) return;
+  if (win.isVisible()) return;
+
+  const n = new Notification({
+    title: "TempDLM — File in use",
+    body: `${item.fileName} is open. Deletion rescheduled for ${SNOOZE_MINUTES} minutes.`,
+  });
+  activeNotifications.add(n);
+  n.on("click", () => {
+    activeNotifications.delete(n);
+    win.show();
+    win.focus();
+  });
+  n.show();
+}
+
+function showConfirmDeleteNotification(item: QueueItem, processNames: string[]): void {
+  const settings = getSettings();
+  if (!settings.showNotifications) return;
+  if (!Notification.isSupported()) return;
+
+  const appList = processNames.slice(0, 2).join(", ");
+  const n = new Notification({
+    title: "TempDLM — File may be open",
+    body: `${item.fileName} appears open in ${appList}.`,
+    silent: true, // renderer plays its own chime
+  });
+  n.show();
 }
 
 // ─── Deletion attempt ─────────────────────────────────────────────────────────
@@ -196,7 +235,10 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
       snoozeCount: newSnoozeCount,
       scheduledFor: snoozedUntil,
     });
-    win.webContents.send(IPC_EVENTS.FILE_IN_USE, getQueueItem(itemId));
+    const updatedItem = getQueueItem(itemId)!;
+    win.webContents.send(IPC_EVENTS.FILE_IN_USE, updatedItem);
+    win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+    showSnoozeNotification(updatedItem, win);
     scheduleJobAt(itemId, new Date(snoozedUntil), win);
     return;
   }
@@ -206,15 +248,24 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
   if (matchingProcesses.length > 0) {
     patchQueueItem(itemId, { status: "confirming" });
 
+    // Always bring the window to the foreground so the user sees the
+    // confirmation dialog immediately — this is time-sensitive.
+    if (!win.isVisible()) {
+      win.show();
+      win.focus();
+    }
+
     const confirmPayload: ConfirmDeletePayload = {
       item: getQueueItem(itemId)!,
       processNames: matchingProcesses,
       timeoutMs: CONFIRM_TIMEOUT_MS,
+      confirmationStartedAt: Date.now(),
     };
     win.webContents.send(IPC_EVENTS.FILE_CONFIRM_DELETE, confirmPayload);
     win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+    showConfirmDeleteNotification(confirmPayload.item, matchingProcesses);
 
-    const decision = await waitForConfirmation(itemId);
+    const decision = await waitForConfirmation(itemId, CONFIRM_TIMEOUT_MS);
 
     if (decision === "keep") {
       patchQueueItem(itemId, { status: "pending", scheduledFor: null });
@@ -255,7 +306,10 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
         snoozeCount: newSnoozeCount,
         scheduledFor: snoozedUntil,
       });
-      win.webContents.send(IPC_EVENTS.FILE_IN_USE, getQueueItem(itemId));
+      const updatedItem = getQueueItem(itemId)!;
+      win.webContents.send(IPC_EVENTS.FILE_IN_USE, updatedItem);
+      win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+      showSnoozeNotification(updatedItem, win);
       scheduleJobAt(itemId, new Date(snoozedUntil), win);
     }
   }
