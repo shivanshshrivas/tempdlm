@@ -153,7 +153,8 @@ function createMainWindow(): void {
 // ─── Tray ─────────────────────────────────────────────────────────────────────
 
 function createTray(): void {
-  const icon = nativeImage.createEmpty();
+  const iconPath = path.join(__dirname, "../../assets/icon.ico");
+  const icon = nativeImage.createFromPath(iconPath);
   tray = new Tray(icon);
   tray.setToolTip("TempDLM");
   refreshTrayMenu();
