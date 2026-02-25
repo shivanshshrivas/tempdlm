@@ -16,7 +16,7 @@ interface StoreSchema {
 function defaultSettings(): UserSettings {
   return {
     downloadsFolder: app.getPath("downloads"),
-    launchAtStartup: false,
+    launchAtStartup: true,
     defaultTimer: "30m",
     customDefaultMinutes: 60,
     theme: "system",

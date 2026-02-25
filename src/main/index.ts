@@ -36,6 +36,15 @@ let isQuitting = false;
 
 const isDev = !app.isPackaged;
 
+// ─── Startup helper ───────────────────────────────────────────────────────────
+
+function applyStartupSetting(enabled: boolean): void {
+  app.setLoginItemSettings({
+    openAtLogin: enabled,
+    openAsHidden: true,
+  });
+}
+
 // ─── Window / tray references ─────────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null;
@@ -146,6 +155,10 @@ function registerIpcHandlers(): void {
       startWatcher(mainWindow, updated);
     }
 
+    if (patch.launchAtStartup !== undefined) {
+      applyStartupSetting(patch.launchAtStartup);
+    }
+
     refreshTrayMenu();
     return updated;
   });
@@ -205,6 +218,7 @@ if (!gotLock) {
 
 app.whenReady().then(async () => {
   await initStore();
+  applyStartupSetting(getSettings().launchAtStartup);
   await initDeletionEngine();
 
   createMainWindow();
