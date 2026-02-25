@@ -10,6 +10,8 @@ import { UserSettings } from "../../shared/types";
 const mockGetSettings = vi.fn();
 const mockUpdateSettings = vi.fn().mockResolvedValue({ success: true });
 const mockPickFolder = vi.fn().mockResolvedValue(null);
+const mockGetAppVersion = vi.fn().mockResolvedValue("1.0.0");
+const mockCheckForUpdate = vi.fn().mockResolvedValue(undefined);
 
 const baseSettings: UserSettings = {
   downloadsFolder: "C:\\Users\\Test\\Downloads",
@@ -30,6 +32,8 @@ beforeEach(() => {
       getSettings: mockGetSettings,
       updateSettings: mockUpdateSettings,
       pickFolder: mockPickFolder,
+      getAppVersion: mockGetAppVersion,
+      checkForUpdate: mockCheckForUpdate,
     },
     writable: true,
     configurable: true,
