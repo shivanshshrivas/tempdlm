@@ -46,6 +46,7 @@ function makePayload(overrides: Partial<ConfirmDeletePayload> = {}): ConfirmDele
     item: makeItem(),
     processNames: ["notepad"],
     timeoutMs: 15_000,
+    confirmationStartedAt: Date.now(),
     ...overrides,
   };
 }
