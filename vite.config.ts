@@ -22,6 +22,7 @@ export default defineConfig({
                 "chokidar",
                 "trash",
                 "electron-store",
+                "electron-updater",
                 "node-schedule",
                 "proper-lockfile",
               ],
