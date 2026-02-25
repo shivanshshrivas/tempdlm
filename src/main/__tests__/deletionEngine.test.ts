@@ -1,10 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { QueueItem } from "../../shared/types";
+import { QueueItem, UserSettings } from "../../shared/types";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 vi.mock("electron", () => ({
   app: { getPath: () => "C:\\Users\\test\\Downloads" },
+  Notification: class {
+    static isSupported() {
+      return true;
+    }
+    on(_event: string, _fn: () => void) {
+      return this;
+    }
+    show() {}
+  },
 }));
 
 vi.mock("electron-store", () => ({
@@ -34,6 +43,7 @@ vi.mock("../store", () => ({
     mockQueue.set(id, updated);
     return updated;
   }),
+  getSettings: vi.fn(() => ({ showNotifications: true })),
 }));
 
 // ── node-schedule mock ────────────────────────────────────────────────────────
@@ -104,7 +114,7 @@ import {
   resolveConfirmation,
   _getJobs,
 } from "../deletionEngine";
-import { patchQueueItem } from "../store";
+import { patchQueueItem, getSettings } from "../store";
 import * as schedule from "node-schedule";
 import * as trashModule from "trash";
 
@@ -127,9 +137,12 @@ function makeItem(overrides: Partial<QueueItem> = {}): QueueItem {
   };
 }
 
-function makeFakeWindow() {
+function makeFakeWindow(visible = false) {
   return {
     webContents: { send: vi.fn() },
+    isVisible: vi.fn(() => visible),
+    show: vi.fn(),
+    focus: vi.fn(),
   } as unknown as import("electron").BrowserWindow;
 }
 
@@ -459,7 +472,7 @@ describe("deletionEngine", () => {
       windowTitleProcesses = ["notepad"];
       const item = makeItem({ id: "wt4", status: "scheduled" });
       mockQueue.set("wt4", item);
-      const win = makeFakeWindow();
+      const win = makeFakeWindow(true); // window visible → 15s timeout
 
       scheduleItem(item, 1 / 60, win);
       const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
@@ -471,6 +484,56 @@ describe("deletionEngine", () => {
 
       expect(vi.mocked(trashModule.default)).toHaveBeenCalled();
       vi.useRealTimers();
+    });
+  });
+
+  // ── Native notifications ─────────────────────────────────────────────────────
+
+  describe("native notifications", () => {
+    it("shows notification when file is locked and window is hidden", async () => {
+      const { Notification } = await import("electron");
+      const showSpy = vi.spyOn(Notification.prototype, "show");
+      fileLocked = true;
+      const item = makeItem({ id: "notif-1", status: "scheduled", snoozeCount: 0 });
+      mockQueue.set("notif-1", item);
+      const win = makeFakeWindow(false); // window hidden
+
+      scheduleItem(item, 1 / 60, win);
+      const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
+      await job.callback();
+
+      expect(showSpy).toHaveBeenCalledOnce();
+    });
+
+    it("does not show notification when window is visible", async () => {
+      const { Notification } = await import("electron");
+      const showSpy = vi.spyOn(Notification.prototype, "show");
+      fileLocked = true;
+      const item = makeItem({ id: "notif-2", status: "scheduled", snoozeCount: 0 });
+      mockQueue.set("notif-2", item);
+      const win = makeFakeWindow(true); // window visible
+
+      scheduleItem(item, 1 / 60, win);
+      const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
+      await job.callback();
+
+      expect(showSpy).not.toHaveBeenCalled();
+    });
+
+    it("does not show notification when showNotifications is false", async () => {
+      vi.mocked(getSettings).mockReturnValueOnce({ showNotifications: false } as UserSettings);
+      const { Notification } = await import("electron");
+      const showSpy = vi.spyOn(Notification.prototype, "show");
+      fileLocked = true;
+      const item = makeItem({ id: "notif-3", status: "scheduled", snoozeCount: 0 });
+      mockQueue.set("notif-3", item);
+      const win = makeFakeWindow(false);
+
+      scheduleItem(item, 1 / 60, win);
+      const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
+      await job.callback();
+
+      expect(showSpy).not.toHaveBeenCalled();
     });
   });
 });

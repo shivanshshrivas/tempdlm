@@ -96,6 +96,8 @@ export interface ConfirmDeletePayload {
   item: QueueItem;
   processNames: string[];
   timeoutMs: number;
+  /** Unix timestamp (ms) when the main-process confirmation timer started. */
+  confirmationStartedAt: number;
 }
 
 export interface ConfirmResponsePayload {

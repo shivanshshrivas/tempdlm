@@ -5,7 +5,7 @@ import QueueView from "./components/QueueView";
 import SettingsView from "./components/SettingsView";
 import NewFileDialog from "./components/NewFileDialog";
 import ConfirmDeleteDialog from "./components/ConfirmDeleteDialog";
-import { playNewFileChime } from "./utils/sound";
+import { playNewFileChime, playConfirmChime } from "./utils/sound";
 
 // ─── Nav types ────────────────────────────────────────────────────────────────
 
@@ -135,6 +135,7 @@ function ConfirmQueue() {
   useEffect(() => {
     const unsub = window.tempdlm.onFileConfirmDelete((payload) => {
       setQueue((q) => [...q, payload]);
+      playConfirmChime();
     });
     return () => {
       unsub();
