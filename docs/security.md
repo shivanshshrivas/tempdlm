@@ -5,10 +5,10 @@ This document describes the security architecture, hardening decisions, input va
 <details>
 <summary><strong>Change log</strong> (last updated: 2026-02-25)</summary>
 
-| Date       | Issue                                                              | Summary              |
-| ---------- | ------------------------------------------------------------------ | -------------------- |
-| 2026-02-25 | [#9](https://github.com/shivanshshrivas/tempdlm/issues/9)         | Auto-update support  |
-| 2026-02-25 | [#8](https://github.com/shivanshshrivas/tempdlm/issues/8)         | Security audit       |
+| Date       | Issue                                                     | Summary             |
+| ---------- | --------------------------------------------------------- | ------------------- |
+| 2026-02-25 | [#9](https://github.com/shivanshshrivas/tempdlm/issues/9) | Auto-update support |
+| 2026-02-25 | [#8](https://github.com/shivanshshrivas/tempdlm/issues/8) | Security audit      |
 
 </details>
 
