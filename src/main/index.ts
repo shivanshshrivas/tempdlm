@@ -123,6 +123,12 @@ function createMainWindow(): void {
       mainWindow?.hide();
     }
   });
+
+  // Push a fresh queue snapshot whenever the window is restored from tray,
+  // so countdown timers and statuses are never stale.
+  mainWindow.on("show", () => {
+    mainWindow?.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+  });
 }
 
 // ─── Tray ─────────────────────────────────────────────────────────────────────
