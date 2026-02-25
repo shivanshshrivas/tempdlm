@@ -5,6 +5,7 @@ import QueueView from "./components/QueueView";
 import SettingsView from "./components/SettingsView";
 import NewFileDialog from "./components/NewFileDialog";
 import ConfirmDeleteDialog from "./components/ConfirmDeleteDialog";
+import UpdateNotification from "./components/UpdateNotification";
 import { playNewFileChime, playConfirmChime } from "./utils/sound";
 
 // ─── Nav types ────────────────────────────────────────────────────────────────
@@ -198,6 +199,7 @@ export default function App() {
 
       <DialogQueue />
       <ConfirmQueue />
+      <UpdateNotification />
     </div>
   );
 }
