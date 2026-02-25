@@ -7,8 +7,9 @@ interface Props {
 }
 
 export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
-  const { item, processNames, timeoutMs } = payload;
-  const [remainingMs, setRemainingMs] = useState(timeoutMs);
+  const { item, processNames, timeoutMs, confirmationStartedAt } = payload;
+  const deadline = confirmationStartedAt + timeoutMs;
+  const [remainingMs, setRemainingMs] = useState(() => Math.max(0, deadline - Date.now()));
   const responded = useRef(false);
 
   const handleDelete = useCallback(() => {
@@ -30,25 +31,24 @@ export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setRemainingMs((prev) => {
-        const next = prev - 100;
-        if (next <= 0) {
-          clearInterval(interval);
-          if (!responded.current) {
-            responded.current = true;
-            window.tempdlm.confirmDeleteResponse({
-              itemId: item.id,
-              decision: "delete",
-            });
-            onDismiss();
-          }
-          return 0;
+      const left = deadline - Date.now();
+      if (left <= 0) {
+        clearInterval(interval);
+        setRemainingMs(0);
+        if (!responded.current) {
+          responded.current = true;
+          window.tempdlm.confirmDeleteResponse({
+            itemId: item.id,
+            decision: "delete",
+          });
+          onDismiss();
         }
-        return next;
-      });
+      } else {
+        setRemainingMs(left);
+      }
     }, 100);
     return () => clearInterval(interval);
-  }, [item.id, timeoutMs, onDismiss]);
+  }, [item.id, deadline, onDismiss]);
 
   const progressFraction = remainingMs / timeoutMs;
   const processLabel = processNames.join(", ");
