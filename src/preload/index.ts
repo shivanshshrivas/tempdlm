@@ -9,6 +9,8 @@ import {
   SnoozePayload,
   ConfirmDeletePayload,
   ConfirmResponsePayload,
+  AppUpdateInfo,
+  UpdateProgress,
 } from "../shared/types";
 
 // ─── Exposed API ──────────────────────────────────────────────────────────────
@@ -56,6 +58,21 @@ const api = {
     return res.data as string | null;
   },
 
+  // ── Update commands ─────────────────────────────────────────────────────────
+
+  getAppVersion: async (): Promise<string> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.APP_GET_VERSION);
+    return res.data as string;
+  },
+
+  checkForUpdate: (): Promise<void> => ipcRenderer.invoke(IPC_INVOKE.UPDATE_CHECK),
+
+  downloadUpdate: (): Promise<void> => ipcRenderer.invoke(IPC_INVOKE.UPDATE_DOWNLOAD),
+
+  installUpdate: (): Promise<void> => ipcRenderer.invoke(IPC_INVOKE.UPDATE_INSTALL),
+
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke(IPC_INVOKE.OPEN_EXTERNAL, url),
+
   // ── Event subscriptions ────────────────────────────────────────────────────
   // Returns an unsubscribe function.
 
@@ -88,6 +105,32 @@ const api = {
     const handler = (_: Electron.IpcRendererEvent, queue: QueueItem[]) => callback(queue);
     ipcRenderer.on(IPC_EVENTS.QUEUE_UPDATED, handler);
     return () => ipcRenderer.removeListener(IPC_EVENTS.QUEUE_UPDATED, handler);
+  },
+
+  // ── Update event subscriptions ──────────────────────────────────────────────
+
+  onUpdateAvailable: (callback: (info: AppUpdateInfo) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, info: AppUpdateInfo) => callback(info);
+    ipcRenderer.on(IPC_EVENTS.UPDATE_AVAILABLE, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENTS.UPDATE_AVAILABLE, handler);
+  },
+
+  onUpdateProgress: (callback: (progress: UpdateProgress) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, progress: UpdateProgress) => callback(progress);
+    ipcRenderer.on(IPC_EVENTS.UPDATE_PROGRESS, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENTS.UPDATE_PROGRESS, handler);
+  },
+
+  onUpdateDownloaded: (callback: () => void) => {
+    const handler = () => callback();
+    ipcRenderer.on(IPC_EVENTS.UPDATE_DOWNLOADED, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENTS.UPDATE_DOWNLOADED, handler);
+  },
+
+  onUpdateError: (callback: (message: string) => void) => {
+    const handler = (_: Electron.IpcRendererEvent, message: string) => callback(message);
+    ipcRenderer.on(IPC_EVENTS.UPDATE_ERROR, handler);
+    return () => ipcRenderer.removeListener(IPC_EVENTS.UPDATE_ERROR, handler);
   },
 };
 

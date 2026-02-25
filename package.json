@@ -32,6 +32,7 @@
     "@tanstack/react-table": "^8.21.3",
     "chokidar": "^5.0.0",
     "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.3",
     "node-schedule": "^2.1.1",
     "proper-lockfile": "^4.1.2",
     "react": "^19.2.4",
@@ -42,8 +43,6 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.0",
-    "electron": "^40.6.0",
-    "electron-builder": "^26.8.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -56,6 +55,8 @@
     "@types/react-window": "^1.8.8",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/ui": "^4.0.18",
+    "electron": "^40.6.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -82,6 +83,11 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "shivanshshrivas",
+      "repo": "tempdlm"
     },
     "nsis": {
       "oneClick": false,

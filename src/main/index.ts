@@ -28,6 +28,7 @@ import {
   cancelAllJobs,
   resolveConfirmation,
 } from "./deletionEngine";
+import { initUpdater, registerUpdateHandlers, stopUpdater } from "./updater";
 
 // ─── Quit flag ────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,17 @@ function buildTrayMenu(): Electron.MenuItemConstructorOptions[] {
     {
       label: "Open TempDLM",
       click: () => {
+        mainWindow?.show();
+        mainWindow?.focus();
+      },
+    },
+    {
+      label: "Check for Updates",
+      click: () => {
+        // Import dynamically to avoid circular init issues
+        import("electron-updater").then(({ autoUpdater }) => {
+          autoUpdater.checkForUpdates().catch(() => {});
+        });
         mainWindow?.show();
         mainWindow?.focus();
       },
@@ -376,6 +388,10 @@ function registerIpcHandlers(): void {
     });
     return { success: true, data: result.canceled ? null : result.filePaths[0] };
   });
+
+  ipcMain.handle(IPC_INVOKE.APP_GET_VERSION, () => {
+    return { success: true, data: app.getVersion() };
+  });
 }
 
 // ─── App lifecycle ────────────────────────────────────────────────────────────
@@ -398,6 +414,12 @@ app.whenReady().then(async () => {
   createMainWindow();
   createTray();
   registerIpcHandlers();
+  registerUpdateHandlers();
+
+  // Start auto-update checker (only in packaged builds)
+  if (!isDev && mainWindow) {
+    initUpdater(mainWindow);
+  }
 
   // Wire up the unlink cancel callback to avoid circular imports
   setUnlinkCancelFn((itemId) => cancelItem(itemId));
@@ -419,4 +441,5 @@ app.on("activate", () => {
 app.on("before-quit", () => {
   cancelAllJobs();
   stopWatcher();
+  stopUpdater();
 });

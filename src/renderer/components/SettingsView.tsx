@@ -164,9 +164,12 @@ export default function SettingsView() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [appVersion, setAppVersion] = useState("");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date">("idle");
 
   useEffect(() => {
     window.tempdlm.getSettings().then(setSettings);
+    window.tempdlm.getAppVersion().then(setAppVersion);
   }, []);
 
   function patch(partial: Partial<UserSettings>) {
@@ -301,6 +304,37 @@ export default function SettingsView() {
           </span>
         )}
       </div>
+
+      {/* About */}
+      <Section title="About">
+        <Row label="Version">
+          <span className="text-xs text-neutral-400 font-mono">
+            {appVersion ? `v${appVersion}` : "—"}
+          </span>
+        </Row>
+        <Row label="Updates">
+          <button
+            onClick={() => {
+              setUpdateStatus("checking");
+              window.tempdlm.checkForUpdate().then(() => {
+                // If no update-available event fires within 5s, show "up to date"
+                setTimeout(
+                  () => setUpdateStatus((s) => (s === "checking" ? "up-to-date" : s)),
+                  5000,
+                );
+              });
+            }}
+            disabled={updateStatus === "checking"}
+            className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 text-xs rounded transition-colors disabled:opacity-50"
+          >
+            {updateStatus === "checking"
+              ? "Checking…"
+              : updateStatus === "up-to-date"
+                ? "Up to date"
+                : "Check for Updates"}
+          </button>
+        </Row>
+      </Section>
     </div>
   );
 }
