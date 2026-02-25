@@ -71,49 +71,79 @@ function WhitelistRuleRow({
 
 // ─── Add whitelist rule form ───────────────────────────────────────────────────
 
+const EXTENSION_RE = /^\.[a-z0-9]{1,10}$/i;
+const PATH_SEP_RE = /[/\\]/;
+
 function AddRuleForm({ onAdd }: { onAdd: (rule: Omit<WhitelistRule, "id">) => void }) {
   const [value, setValue] = useState("");
   const [action, setAction] = useState<WhitelistRule["action"]>("never-delete");
+  const [ruleError, setRuleError] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) return;
+
+    // Validate extension rules: must be .ext format (1–10 alphanumeric chars)
+    if (!EXTENSION_RE.test(trimmed)) {
+      setRuleError('Must be a file extension like ".pdf" (letters/digits, max 10 chars)');
+      return;
+    }
+
+    // Guard against path separators slipping through
+    if (PATH_SEP_RE.test(trimmed)) {
+      setRuleError("Rule value must not contain path separators");
+      return;
+    }
+
+    setRuleError("");
     onAdd({
       type: "extension",
-      value: trimmed,
+      value: trimmed.toLowerCase(),
       action,
       enabled: true,
     });
     setValue("");
   }
 
+  function handleValueChange(val: string) {
+    setValue(val);
+    if (ruleError) setRuleError("");
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 mt-2">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder=".pdf, .exe, …"
-        aria-label="New whitelist rule value"
-        className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
-      />
-      <select
-        value={action}
-        onChange={(e) => setAction(e.target.value as WhitelistRule["action"])}
-        aria-label="Whitelist rule action"
-        className="bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-blue-500"
-      >
-        <option value="never-delete">Never delete</option>
-        <option value="auto-delete-after">Auto-delete</option>
-      </select>
-      <button
-        type="submit"
-        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors"
-      >
-        Add
-      </button>
-    </form>
+    <div className="mt-2 space-y-1">
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => handleValueChange(e.target.value)}
+          placeholder=".pdf, .exe, …"
+          aria-label="New whitelist rule value"
+          className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+        />
+        <select
+          value={action}
+          onChange={(e) => setAction(e.target.value as WhitelistRule["action"])}
+          aria-label="Whitelist rule action"
+          className="bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-blue-500"
+        >
+          <option value="never-delete">Never delete</option>
+          <option value="auto-delete-after">Auto-delete</option>
+        </select>
+        <button
+          type="submit"
+          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors"
+        >
+          Add
+        </button>
+      </form>
+      {ruleError && (
+        <p className="text-xs text-red-400" role="alert">
+          {ruleError}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -133,6 +163,7 @@ const DEFAULT_SETTINGS: UserSettings = {
 export default function SettingsView() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     window.tempdlm.getSettings().then(setSettings);
@@ -141,6 +172,7 @@ export default function SettingsView() {
   function patch(partial: Partial<UserSettings>) {
     setSettings((prev) => ({ ...prev, ...partial }));
     setSaved(false);
+    setSaveError("");
   }
 
   async function handlePickFolder() {
@@ -149,8 +181,13 @@ export default function SettingsView() {
   }
 
   async function handleSave() {
-    await window.tempdlm.updateSettings(settings);
-    setSaved(true);
+    setSaveError("");
+    const result = await window.tempdlm.updateSettings(settings);
+    if (result.success) {
+      setSaved(true);
+    } else {
+      setSaveError(result.error ?? "Failed to save settings");
+    }
   }
 
   function handleAddRule(rule: Omit<WhitelistRule, "id">) {
@@ -258,6 +295,11 @@ export default function SettingsView() {
           Save
         </button>
         {saved && <span className="text-xs text-green-400">Settings saved.</span>}
+        {saveError && (
+          <span className="text-xs text-red-400" role="alert">
+            {saveError}
+          </span>
+        )}
       </div>
     </div>
   );
