@@ -443,6 +443,53 @@ describe("deletionEngine", () => {
       expect(vi.mocked(trashModule.default)).toHaveBeenCalled();
     });
 
+    it("caps processNames at 3 entries with '…and N more' suffix", async () => {
+      fileExists = true;
+      fileLocked = false;
+      windowTitleProcesses = ["proc1", "proc2", "proc3", "proc4", "proc5"];
+      const item = makeItem({ id: "wt-cap", status: "scheduled" });
+      mockQueue.set("wt-cap", item);
+      const win = makeFakeWindow();
+
+      scheduleItem(item, 1 / 60, win);
+      const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
+      const deletionPromise = job.callback();
+
+      const confirmCall = vi
+        .mocked(win.webContents.send)
+        .mock.calls.find(([ch]) => ch === "file:confirm-delete");
+      expect(confirmCall).toBeDefined();
+      const payload = confirmCall![1] as { processNames: string[] };
+      expect(payload.processNames).toHaveLength(4); // 3 names + "…and 2 more"
+      expect(payload.processNames[3]).toBe("…and 2 more");
+
+      resolveConfirmation("wt-cap", "keep");
+      await deletionPromise;
+    });
+
+    it("truncates process names longer than 32 chars", async () => {
+      fileExists = true;
+      fileLocked = false;
+      windowTitleProcesses = ["a".repeat(40)];
+      const item = makeItem({ id: "wt-trunc", status: "scheduled" });
+      mockQueue.set("wt-trunc", item);
+      const win = makeFakeWindow();
+
+      scheduleItem(item, 1 / 60, win);
+      const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
+      const deletionPromise = job.callback();
+
+      const confirmCall = vi
+        .mocked(win.webContents.send)
+        .mock.calls.find(([ch]) => ch === "file:confirm-delete");
+      expect(confirmCall).toBeDefined();
+      const payload = confirmCall![1] as { processNames: string[] };
+      expect(payload.processNames[0]).toHaveLength(32);
+
+      resolveConfirmation("wt-trunc", "keep");
+      await deletionPromise;
+    });
+
     it("cancels timer when user chooses keep", async () => {
       fileExists = true;
       fileLocked = false;
