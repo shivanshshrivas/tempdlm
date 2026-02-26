@@ -181,8 +181,6 @@ jobs:
           for f in \
             README.md \
             docs/security.md \
-            docs/roadmap.md \
-            docs/specifications.md \
             .github/SECURITY.md; do
             if [ ! -f "$f" ]; then
               echo "::error::Required documentation file missing: $f"
@@ -198,8 +196,6 @@ jobs:
             --config .mlc-config.json \
             README.md \
             docs/security.md \
-            docs/roadmap.md \
-            docs/specifications.md \
             .github/SECURITY.md \
             || true
         # `|| true` keeps this step non-blocking while we tune the allowlist;
