@@ -1,9 +1,9 @@
 import fs from "fs";
 import path from "path";
-import { BrowserWindow, Notification } from "electron";
-import chokidar, { FSWatcher } from "chokidar";
+import { type BrowserWindow, Notification } from "electron";
+import chokidar, { type FSWatcher } from "chokidar";
 import { randomUUID } from "crypto";
-import { QueueItem, UserSettings, WhitelistRule, IPC_EVENTS } from "../shared/types";
+import { type QueueItem, type UserSettings, type WhitelistRule, IPC_EVENTS } from "../shared/types";
 import { upsertQueueItem, getSettings, getQueue, patchQueueItem } from "./store";
 
 // ─── Internal state ───────────────────────────────────────────────────────────

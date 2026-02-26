@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { QueueItem, UserSettings } from "../../shared/types";
+import type { BrowserWindow } from "electron";
+import { type QueueItem, type UserSettings } from "../../shared/types";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -143,7 +144,7 @@ function makeFakeWindow(visible = false) {
     isVisible: vi.fn(() => visible),
     show: vi.fn(),
     focus: vi.fn(),
-  } as unknown as import("electron").BrowserWindow;
+  } as unknown as BrowserWindow;
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

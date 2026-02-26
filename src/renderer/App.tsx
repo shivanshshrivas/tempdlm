@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { QueueItem, ConfirmDeletePayload } from "../shared/types";
+import { type QueueItem, type ConfirmDeletePayload } from "../shared/types";
 import { useQueueStore } from "./store/useQueueStore";
 import QueueView from "./components/QueueView";
 import SettingsView from "./components/SettingsView";

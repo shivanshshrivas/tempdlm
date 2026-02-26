@@ -1,5 +1,5 @@
 import { app } from "electron";
-import { QueueItem, UserSettings } from "../shared/types";
+import { type QueueItem, type UserSettings } from "../shared/types";
 
 // electron-store v11 is ESM-only, so we use a dynamic import at module level
 // and expose a sync-style API after initialisation.

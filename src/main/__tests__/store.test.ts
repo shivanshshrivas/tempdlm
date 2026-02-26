@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { QueueItem, UserSettings } from "../../shared/types";
+import { type QueueItem, type UserSettings } from "../../shared/types";
 
 // ─── Mock electron ────────────────────────────────────────────────────────────
 // Must be declared before importing the module under test.

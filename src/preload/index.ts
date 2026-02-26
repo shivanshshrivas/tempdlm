@@ -2,15 +2,15 @@ import { contextBridge, ipcRenderer } from "electron";
 import {
   IPC_EVENTS,
   IPC_INVOKE,
-  QueueItem,
-  UserSettings,
-  SetTimerPayload,
-  CancelPayload,
-  SnoozePayload,
-  ConfirmDeletePayload,
-  ConfirmResponsePayload,
-  AppUpdateInfo,
-  UpdateProgress,
+  type QueueItem,
+  type UserSettings,
+  type SetTimerPayload,
+  type CancelPayload,
+  type SnoozePayload,
+  type ConfirmDeletePayload,
+  type ConfirmResponsePayload,
+  type AppUpdateInfo,
+  type UpdateProgress,
 } from "../shared/types";
 
 // ─── Exposed API ──────────────────────────────────────────────────────────────

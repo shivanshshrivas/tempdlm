@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { WhitelistRule } from "../../shared/types";
+import type { BrowserWindow } from "electron";
+import { type WhitelistRule } from "../../shared/types";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ function makeFakeWindow() {
     isVisible: vi.fn(() => true),
     show: vi.fn(),
     focus: vi.fn(),
-  } as unknown as import("electron").BrowserWindow;
+  } as unknown as BrowserWindow;
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

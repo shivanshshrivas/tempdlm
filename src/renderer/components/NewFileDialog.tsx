@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { QueueItem } from "../../shared/types";
+import { type QueueItem } from "../../shared/types";
 import { formatBytes, middleTruncate } from "../utils/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────

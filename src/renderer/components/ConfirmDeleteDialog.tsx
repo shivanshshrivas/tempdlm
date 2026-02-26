@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ConfirmDeletePayload } from "../../shared/types";
+import { type ConfirmDeletePayload } from "../../shared/types";
 import { middleTruncate } from "../utils/format";
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   payload: ConfirmDeletePayload;
   onDismiss: () => void;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
   const { item, processNames, timeoutMs, confirmationStartedAt } = payload;
