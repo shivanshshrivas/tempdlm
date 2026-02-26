@@ -28,7 +28,7 @@ import {
   cancelAllJobs,
   resolveConfirmation,
 } from "./deletionEngine";
-import { initUpdater, registerUpdateHandlers, stopUpdater } from "./updater";
+import { initUpdater, registerUpdateHandlers, stopUpdater, checkForUpdatesNow } from "./updater";
 
 // ─── Quit flag ────────────────────────────────────────────────────────────────
 
@@ -79,10 +79,7 @@ function buildTrayMenu(): Electron.MenuItemConstructorOptions[] {
     {
       label: "Check for Updates",
       click: () => {
-        // Import dynamically to avoid circular init issues
-        import("electron-updater").then(({ autoUpdater }) => {
-          autoUpdater.checkForUpdates().catch(() => {});
-        });
+        checkForUpdatesNow();
         mainWindow?.show();
         mainWindow?.focus();
       },
@@ -98,9 +95,20 @@ function buildTrayMenu(): Electron.MenuItemConstructorOptions[] {
   ];
 }
 
+function buildTrayTooltip(): string {
+  const queue = getQueue();
+  const pendingCount = queue.filter(
+    (i) => i.status === "scheduled" || i.status === "snoozed" || i.status === "pending",
+  ).length;
+  return pendingCount > 0
+    ? `TempDLM — ${pendingCount} file${pendingCount > 1 ? "s" : ""} pending`
+    : "TempDLM";
+}
+
 function refreshTrayMenu(): void {
   if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate(buildTrayMenu()));
+  tray.setToolTip(buildTrayTooltip());
 }
 
 // ─── Window ───────────────────────────────────────────────────────────────────
@@ -156,8 +164,12 @@ function createTray(): void {
   const iconPath = path.join(__dirname, "../../assets/icon.ico");
   const icon = nativeImage.createFromPath(iconPath);
   tray = new Tray(icon);
-  tray.setToolTip("TempDLM");
+  tray.setToolTip(buildTrayTooltip());
   refreshTrayMenu();
+  tray.on("click", () => {
+    mainWindow?.show();
+    mainWindow?.focus();
+  });
   tray.on("double-click", () => {
     mainWindow?.show();
     mainWindow?.focus();
