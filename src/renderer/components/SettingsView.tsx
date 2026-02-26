@@ -306,12 +306,8 @@ export default function SettingsView() {
           >
             {dirty ? "Save changes" : "Saved"}
           </button>
-          {dirty && !saveError && (
-            <span className="text-xs text-amber-400">Unsaved changes</span>
-          )}
-          {saved && !dirty && (
-            <span className="text-xs text-green-400">Settings saved.</span>
-          )}
+          {dirty && !saveError && <span className="text-xs text-amber-400">Unsaved changes</span>}
+          {saved && !dirty && <span className="text-xs text-green-400">Settings saved.</span>}
           {saveError && (
             <span className="text-xs text-red-400" role="alert">
               {saveError}
