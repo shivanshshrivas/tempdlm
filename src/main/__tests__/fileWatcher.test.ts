@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { BrowserWindow } from "electron";
-import { type WhitelistRule } from "../../shared/types";
+import { type WhitelistRule, IPC_EVENTS } from "../../shared/types";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -251,7 +251,9 @@ describe("startWatcher / stopWatcher", () => {
     expect(upsertQueueItem).toHaveBeenCalledWith(
       expect.objectContaining({ status: "whitelisted" }),
     );
-    expect(win.webContents.send).not.toHaveBeenCalled();
+    // Whitelisted items skip the dialog (no FILE_NEW) but still refresh the queue
+    expect(win.webContents.send).toHaveBeenCalledTimes(1);
+    expect(win.webContents.send).toHaveBeenCalledWith(IPC_EVENTS.QUEUE_UPDATED, []);
 
     mockSettings.whitelistRules = [];
     vi.useRealTimers();
