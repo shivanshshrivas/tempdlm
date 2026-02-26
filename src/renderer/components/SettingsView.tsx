@@ -152,7 +152,7 @@ function AddRuleForm({ onAdd }: { onAdd: (rule: Omit<WhitelistRule, "id">) => vo
 const DEFAULT_SETTINGS: UserSettings = {
   downloadsFolder: "",
   launchAtStartup: false,
-  defaultTimer: "30m",
+  defaultTimer: "never",
   customDefaultMinutes: 60,
   theme: "system",
   showNotifications: true,
@@ -162,6 +162,7 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 export default function SettingsView() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [appVersion, setAppVersion] = useState("");
@@ -174,6 +175,7 @@ export default function SettingsView() {
 
   function patch(partial: Partial<UserSettings>) {
     setSettings((prev) => ({ ...prev, ...partial }));
+    setDirty(true);
     setSaved(false);
     setSaveError("");
   }
@@ -187,6 +189,7 @@ export default function SettingsView() {
     setSaveError("");
     const result = await window.tempdlm.updateSettings(settings);
     if (result.success) {
+      setDirty(false);
       setSaved(true);
     } else {
       setSaveError(result.error ?? "Failed to save settings");
@@ -291,14 +294,24 @@ export default function SettingsView() {
         </Section>
 
         {/* Save */}
-        <div className="flex items-center gap-3 mt-2">
+        <div className="flex items-center gap-3 mt-2 mb-8">
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded-lg transition-colors"
+            disabled={!dirty}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              dirty
+                ? "bg-blue-600 hover:bg-blue-500 text-white"
+                : "bg-neutral-700 text-neutral-400 cursor-default"
+            }`}
           >
-            Save
+            {dirty ? "Save changes" : "Saved"}
           </button>
-          {saved && <span className="text-xs text-green-400">Settings saved.</span>}
+          {dirty && !saveError && (
+            <span className="text-xs text-amber-400">Unsaved changes</span>
+          )}
+          {saved && !dirty && (
+            <span className="text-xs text-green-400">Settings saved.</span>
+          )}
           {saveError && (
             <span className="text-xs text-red-400" role="alert">
               {saveError}
