@@ -177,9 +177,9 @@ export default function SettingsView() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [appVersion, setAppVersion] = useState("");
-  const [updateStatus, setUpdateStatus] = useState<
-    "idle" | "checking" | "up-to-date" | "error"
-  >("idle");
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date" | "error">(
+    "idle",
+  );
   const [updateError, setUpdateError] = useState("");
 
   useEffect(() => {
@@ -196,7 +196,9 @@ export default function SettingsView() {
       setUpdateStatus("error");
       setUpdateError(friendlyUpdateError(message));
     });
-    return () => { unsub(); };
+    return () => {
+      unsub();
+    };
   }, []);
 
   function patch(partial: Partial<UserSettings>) {
