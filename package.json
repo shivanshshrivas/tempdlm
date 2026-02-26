@@ -14,6 +14,7 @@
     "test:watch": "vitest watch",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "lint:maintainability": "eslint --config eslint.maintainability.mjs src",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -59,8 +60,10 @@
     "electron-builder": "^26.8.1",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-jsdoc": "^61.7.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^27.0.1",
+    "markdown-link-check": "^3.14.2",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.2.0",
     "typescript": "^5.9.3",
