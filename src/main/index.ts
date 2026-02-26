@@ -28,7 +28,7 @@ import {
   cancelAllJobs,
   resolveConfirmation,
 } from "./deletionEngine";
-import { initUpdater, registerUpdateHandlers, stopUpdater } from "./updater";
+import { initUpdater, registerUpdateHandlers, stopUpdater, checkForUpdatesNow } from "./updater";
 
 // ─── Quit flag ────────────────────────────────────────────────────────────────
 
@@ -79,10 +79,7 @@ function buildTrayMenu(): Electron.MenuItemConstructorOptions[] {
     {
       label: "Check for Updates",
       click: () => {
-        // Import dynamically to avoid circular init issues
-        import("electron-updater").then(({ autoUpdater }) => {
-          autoUpdater.checkForUpdates().catch(() => {});
-        });
+        checkForUpdatesNow();
         mainWindow?.show();
         mainWindow?.focus();
       },

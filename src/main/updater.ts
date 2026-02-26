@@ -121,6 +121,14 @@ export function registerUpdateHandlers(): void {
   });
 }
 
+// ─── Manual trigger ─────────────────────────────────────────────────────────
+
+export function checkForUpdatesNow(): void {
+  autoUpdater.checkForUpdates().catch(() => {
+    // Silently ignore — network errors, dev mode, etc.
+  });
+}
+
 // ─── Cleanup ────────────────────────────────────────────────────────────────
 
 export function stopUpdater(): void {
