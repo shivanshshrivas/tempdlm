@@ -25,7 +25,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
       - run: npm run lint
 
   format:
@@ -39,7 +40,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
       - run: npm run format:check
 
   typecheck:
@@ -53,7 +55,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
       # Check renderer + shared types
       - run: npx tsc --noEmit -p tsconfig.json
       # Check main process + preload
@@ -70,7 +73,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
       - run: npm run test:unit
 
   security-audit:
@@ -84,7 +88,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
       # Fail on high or critical severity vulnerabilities
       - run: npm audit --audit-level=high
 
@@ -101,7 +106,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
 
       # Naming conventions, complexity limits, JSDoc (see eslint.maintainability.mjs)
       - name: ESLint maintainability rules
@@ -171,7 +177,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      - run: npm install -g npm@11
+      - run: npm ci
 
       # Verify required documentation files exist
       - name: Required docs exist
