@@ -159,7 +159,7 @@ describe("store", () => {
   describe("getSettings", () => {
     it("returns defaults when no settings saved", () => {
       const settings = getSettings();
-      expect(settings.defaultTimer).toBe("30m");
+      expect(settings.defaultTimer).toBe("never");
       expect(settings.launchAtStartup).toBe(true);
       expect(settings.theme).toBe("system");
       expect(settings.downloadsFolder).toBe("C:\\Users\\test\\Downloads");
