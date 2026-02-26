@@ -23,7 +23,7 @@ This document outlines the planned evolution of TempDLM from its Windows-only MV
 - Settings panel (folder picker, default timer, launch at startup)
 - System tray (hide-to-tray, pending count label, quick open)
 - Windows installer — NSIS via electron-builder
-- Unit test suite — 155 tests across 8 files (Vitest + Testing Library)
+- Unit test suite — 157 tests across 9 files (Vitest + Testing Library)
 - ESLint (v9 flat config) + Prettier + TypeScript strict mode
 - `.gitattributes` enforcing LF line endings across the repository
 - Separate `eslint.maintainability.mjs` config (naming, complexity, JSDoc)
@@ -32,18 +32,39 @@ This document outlines the planned evolution of TempDLM from its Windows-only MV
 
 ---
 
-## v1.x — Windows Polish
+## v1.1.0 — Windows Polish (Current)
+
+**Theme:** Quality-of-life improvements without platform expansion.
+
+**Implemented:**
+
+- **Auto-update** — `electron-updater` with GitHub Releases as the update source; checks every 6 hours with manual tray-menu trigger
+- **UpdateNotification UI** — non-blocking floating panel showing version, release notes, download progress bar, and install controls
+- **Filename whitelist rules** — exact-filename matching (`setup.exe`) in addition to extension rules
+- **Whitelist rule validation** — extension `^\.[a-z0-9]{1,10}$`, filename 1–255 chars, custom timer bounds enforced in IPC handler
+- **Whitelisted queue entries** — matched files appear in queue with `status: "whitelisted"`; timer dialog is skipped
+- **Native desktop notifications** — snooze events and confirm-delete outcomes trigger OS-level notifications
+- **Confirm-delete countdown wall-clock sync** — countdown timer survives system sleep/resume
+- **System tray enhancement** — left-click or double-click opens main window; "Check for Updates" added to tray menu
+- **Middle-truncate for long filenames** — `middleTruncate` utility applied in queue rows and dialogs
+- **Default timer changed to "Never"** — opt-in deletion model; users explicitly choose a timer
+- **IPC return shape standardized** — all invoke handlers return `{ success: boolean; error?: string }`
+- **Unsaved changes indicator** in Settings panel
+- **URL guard for `shell:open-external`** — only GitHub repository URLs are permitted
+- **Update IPC channels** — `update:available`, `update:download-progress`, `update:downloaded`, `update:error`, `update:check`, `update:download`, `update:install`, `app:get-version`
+
+---
+
+## v1.x — Windows Polish (Upcoming)
 
 **Theme:** Quality-of-life improvements without platform expansion.
 
 **Planned:**
 
 - **Download clustering** — group files arriving within a 2-second window into a single dialog (see `docs/technical-challenges.md` Challenge 2)
-- **Pattern-based whitelist** — wildcard rules (e.g., `temp_*`) and folder-based rules in addition to extension-based
+- **Pattern-based whitelist** — wildcard rules (e.g., `temp_*`) and folder-based rules in addition to extension and filename rules
 - **Configurable dialog positioning** — bottom-right, near-tray, near-cursor, center-active-monitor
-- **Auto-update** — `electron-updater` with GitHub Releases as the update source
 - **Tray icon badge** — file count badge overlay on tray icon
-- **Notification integration** — native Windows toast notifications for scheduled/completed deletions
 - **Statistics view** — files managed, space reclaimed over time
 - **Export/import settings** — JSON export of whitelist rules and preferences
 
@@ -146,11 +167,12 @@ Revisit after v2.x when the feature set is stable. A Tauri port would be a signi
 
 ## Version Summary
 
-| Version | Theme               | Status           |
-| ------- | ------------------- | ---------------- |
-| v1.0.0  | Windows MVP         | **Complete**     |
-| v1.x    | Windows polish      | Planned          |
-| v2.0    | macOS support       | Planned          |
-| v2.x    | Linux support       | Planned          |
-| v3.x    | Extended features   | Planned          |
-| Tauri   | Framework migration | Under evaluation |
+| Version | Theme                | Status           |
+| ------- | -------------------- | ---------------- |
+| v1.0.0  | Windows MVP          | **Complete**     |
+| v1.1.0  | Windows polish       | **Complete**     |
+| v1.x    | Windows polish cont. | Planned          |
+| v2.0    | macOS support        | Planned          |
+| v2.x    | Linux support        | Planned          |
+| v3.x    | Extended features    | Planned          |
+| Tauri   | Framework migration  | Under evaluation |

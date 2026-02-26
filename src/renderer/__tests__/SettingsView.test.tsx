@@ -34,6 +34,7 @@ beforeEach(() => {
       pickFolder: mockPickFolder,
       getAppVersion: mockGetAppVersion,
       checkForUpdate: mockCheckForUpdate,
+      onUpdateError: vi.fn(() => vi.fn()),
     },
     writable: true,
     configurable: true,
@@ -99,13 +100,22 @@ describe("SettingsView", () => {
   });
 
   describe("save", () => {
+    it("save button is disabled when there are no unsaved changes", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
+      expect(screen.getByRole("button", { name: "Saved" })).toBeDisabled();
+    });
+
     it("calls updateSettings with current settings on Save", async () => {
       render(<SettingsView />);
       await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
-      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      // Make a change to enable the save button
+      await userEvent.click(screen.getByLabelText("Launch at startup"));
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
       expect(mockUpdateSettings).toHaveBeenCalledWith(
         expect.objectContaining({
           downloadsFolder: "C:\\Users\\Test\\Downloads",
+          launchAtStartup: true,
         }),
       );
     });
@@ -113,8 +123,16 @@ describe("SettingsView", () => {
     it('shows "Settings saved." confirmation after save', async () => {
       render(<SettingsView />);
       await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
-      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      await userEvent.click(screen.getByLabelText("Launch at startup"));
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
       await waitFor(() => expect(screen.getByText("Settings saved.")).toBeInTheDocument());
+    });
+
+    it('shows "Unsaved changes" indicator when form is dirty', async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
+      await userEvent.click(screen.getByLabelText("Launch at startup"));
+      expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
     });
 
     it("shows error message when save is rejected by main process", async () => {
@@ -124,7 +142,8 @@ describe("SettingsView", () => {
       });
       render(<SettingsView />);
       await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
-      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      await userEvent.click(screen.getByLabelText("Launch at startup"));
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
       await waitFor(() =>
         expect(screen.getByRole("alert")).toHaveTextContent("downloadsFolder must be a directory"),
       );
@@ -145,7 +164,7 @@ describe("SettingsView", () => {
       render(<SettingsView />);
       await waitFor(() => screen.getByRole("button", { name: "30m" }));
       await userEvent.click(screen.getByRole("button", { name: "1d" }));
-      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
       expect(mockUpdateSettings).toHaveBeenCalledWith(
         expect.objectContaining({ defaultTimer: "1d" }),
       );

@@ -17,7 +17,7 @@ function defaultSettings(): UserSettings {
   return {
     downloadsFolder: app.getPath("downloads"),
     launchAtStartup: true,
-    defaultTimer: "30m",
+    defaultTimer: "never",
     customDefaultMinutes: 60,
     theme: "system",
     showNotifications: true,

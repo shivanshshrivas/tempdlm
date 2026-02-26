@@ -158,6 +158,7 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
     if (rule.action === "never-delete") {
       item.status = "whitelisted";
       upsertQueueItem(item);
+      win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
       return;
     }
 
