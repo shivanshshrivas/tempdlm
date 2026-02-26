@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SettingsView from "../components/SettingsView";
-import { UserSettings } from "../../shared/types";
+import { type UserSettings } from "../../shared/types";
 
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 

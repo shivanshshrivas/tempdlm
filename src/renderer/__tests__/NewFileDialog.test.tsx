@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NewFileDialog from "../components/NewFileDialog";
-import { QueueItem } from "../../shared/types";
+import { type QueueItem } from "../../shared/types";
 
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 

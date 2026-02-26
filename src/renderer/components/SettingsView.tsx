@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { UserSettings, TimerPreset, WhitelistRule } from "../../shared/types";
+import { type UserSettings, type TimerPreset, type WhitelistRule } from "../../shared/types";
 
 // ─── Timer preset selector ─────────────────────────────────────────────────────
 

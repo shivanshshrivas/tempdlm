@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { AppUpdateInfo, UpdateProgress } from "../../shared/types";
+import { type AppUpdateInfo, type UpdateProgress } from "../../shared/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

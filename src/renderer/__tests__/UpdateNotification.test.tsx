@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import UpdateNotification from "../components/UpdateNotification";
-import { AppUpdateInfo } from "../../shared/types";
+import { type AppUpdateInfo } from "../../shared/types";
 
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 

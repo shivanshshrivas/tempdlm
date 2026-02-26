@@ -30,6 +30,12 @@ export default tseslint.config(
       ],
       // Allow explicit `any` with a comment — strict TS catches real issues
       "@typescript-eslint/no-explicit-any": "warn",
+      // Enforce `import type` for type-only imports — improves tree-shaking and
+      // makes the import intent explicit. Auto-fixable via `eslint --fix`.
+      "@typescript-eslint/consistent-type-imports": [
+        "error",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
     },
   },
 

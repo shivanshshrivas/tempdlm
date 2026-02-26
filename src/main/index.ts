@@ -4,11 +4,11 @@ import fs from "fs";
 import {
   IPC_EVENTS,
   IPC_INVOKE,
-  UserSettings,
-  SetTimerPayload,
-  CancelPayload,
-  SnoozePayload,
-  ConfirmResponsePayload,
+  type UserSettings,
+  type SetTimerPayload,
+  type CancelPayload,
+  type SnoozePayload,
+  type ConfirmResponsePayload,
 } from "../shared/types";
 import {
   initStore,

@@ -1,8 +1,8 @@
 import fs from "fs";
 import { spawnSync } from "child_process";
-import { BrowserWindow, Notification } from "electron";
+import { type BrowserWindow, Notification } from "electron";
 import * as schedule from "node-schedule";
-import { QueueItem, IPC_EVENTS, ConfirmDeletePayload } from "../shared/types";
+import { type QueueItem, IPC_EVENTS, type ConfirmDeletePayload } from "../shared/types";
 import { getQueueItem, patchQueueItem, getQueue, getSettings } from "./store";
 
 // trash is ESM-only. We load it once at startup via initDeletionEngine()

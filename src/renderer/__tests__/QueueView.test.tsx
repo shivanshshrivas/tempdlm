@@ -4,7 +4,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import QueueView from "../components/QueueView";
 import { useQueueStore } from "../store/useQueueStore";
-import { QueueItem } from "../../shared/types";
+import { type QueueItem } from "../../shared/types";
 
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 

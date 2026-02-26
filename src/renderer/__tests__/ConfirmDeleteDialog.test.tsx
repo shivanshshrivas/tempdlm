@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
-import { ConfirmDeletePayload, QueueItem } from "../../shared/types";
+import { type ConfirmDeletePayload, type QueueItem } from "../../shared/types";
 
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 

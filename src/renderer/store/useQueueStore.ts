@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { QueueItem } from "../../shared/types";
+import { type QueueItem } from "../../shared/types";
 
 interface QueueState {
   items: QueueItem[];

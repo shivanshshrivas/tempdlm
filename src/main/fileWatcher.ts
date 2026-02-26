@@ -1,9 +1,14 @@
 import fs from "fs";
 import path from "path";
-import { BrowserWindow, Notification } from "electron";
-import chokidar, { FSWatcher } from "chokidar";
+
+// Always use win32 path parsing — this app runs on Windows and receives
+// Windows-style paths. Using path.win32 ensures tests on Linux also parse
+// backslash-separated paths correctly.
+const winPath = path.win32;
+import { type BrowserWindow, Notification } from "electron";
+import chokidar, { type FSWatcher } from "chokidar";
 import { randomUUID } from "crypto";
-import { QueueItem, UserSettings, WhitelistRule, IPC_EVENTS } from "../shared/types";
+import { type QueueItem, type UserSettings, type WhitelistRule, IPC_EVENTS } from "../shared/types";
 import { upsertQueueItem, getSettings, getQueue, patchQueueItem } from "./store";
 
 // ─── Internal state ───────────────────────────────────────────────────────────
@@ -39,8 +44,8 @@ export function setUnlinkCancelFn(fn: (itemId: string) => void): void {
  * Phase 1: extension-based rules only.
  */
 export function matchWhitelistRule(fileName: string, rules: WhitelistRule[]): WhitelistRule | null {
-  const ext = path.extname(fileName).toLowerCase();
-  const base = path.basename(fileName).toLowerCase();
+  const ext = winPath.extname(fileName).toLowerCase();
+  const base = winPath.basename(fileName).toLowerCase();
 
   for (const rule of rules) {
     if (!rule.enabled) continue;
@@ -68,8 +73,8 @@ export function buildQueueItem(filePath: string): QueueItem | null {
     return null;
   }
 
-  const fileName = path.basename(filePath);
-  const fileExtension = path.extname(fileName).toLowerCase();
+  const fileName = winPath.basename(filePath);
+  const fileExtension = winPath.extname(fileName).toLowerCase();
 
   return {
     id: randomUUID(),
@@ -114,8 +119,8 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
     clearTimeout(renameEntry.timer);
     recentlyUnlinkedByInode.delete(stat.ino);
 
-    const fileName = path.basename(filePath);
-    const fileExtension = path.extname(fileName).toLowerCase();
+    const fileName = winPath.basename(filePath);
+    const fileExtension = winPath.extname(fileName).toLowerCase();
 
     // Patch the existing item with the new path/name, keep everything else
     patchQueueItem(renameEntry.itemId, {
@@ -129,8 +134,8 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
   }
 
   // ── New file ─────────────────────────────────────────────────────────────
-  const fileName = path.basename(filePath);
-  const fileExtension = path.extname(fileName).toLowerCase();
+  const fileName = winPath.basename(filePath);
+  const fileExtension = winPath.extname(fileName).toLowerCase();
 
   const item: QueueItem = {
     id: randomUUID(),

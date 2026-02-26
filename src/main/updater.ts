@@ -1,18 +1,18 @@
-import { BrowserWindow, ipcMain, shell } from "electron";
-import { autoUpdater, UpdateInfo } from "electron-updater";
-import { IPC_EVENTS, IPC_INVOKE, AppUpdateInfo, UpdateProgress } from "../shared/types";
+import { type BrowserWindow, ipcMain, shell } from "electron";
+import { autoUpdater, type UpdateInfo } from "electron-updater";
+import { IPC_EVENTS, IPC_INVOKE, type AppUpdateInfo, type UpdateProgress } from "../shared/types";
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CHECK_DELAY_MS = 10_000; // 10 seconds after startup
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000; // 6 hours
 
-// ─── State ──────────────────────────────────────────────────────────────────
+// ─── State ────────────────────────────────────────────────────────────────────
 
 let win: BrowserWindow | null = null;
 let intervalId: ReturnType<typeof setInterval> | null = null;
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildReleaseUrl(version: string, owner: string, repo: string): string {
   return `https://github.com/${owner}/${repo}/releases/tag/v${version}`;
@@ -29,7 +29,7 @@ function extractReleaseNotes(info: UpdateInfo): string {
   return "";
 }
 
-// ─── Init ───────────────────────────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────────────────────
 
 export function initUpdater(mainWindow: BrowserWindow): void {
   win = mainWindow;
@@ -87,7 +87,7 @@ export function initUpdater(mainWindow: BrowserWindow): void {
   }, CHECK_INTERVAL_MS);
 }
 
-// ─── IPC handlers ───────────────────────────────────────────────────────────
+// ─── IPC handlers ─────────────────────────────────────────────────────────────
 
 export function registerUpdateHandlers(): void {
   ipcMain.handle(IPC_INVOKE.UPDATE_CHECK, async () => {
@@ -121,7 +121,7 @@ export function registerUpdateHandlers(): void {
   });
 }
 
-// ─── Manual trigger ─────────────────────────────────────────────────────────
+// ─── Manual trigger ───────────────────────────────────────────────────────────
 
 export function checkForUpdatesNow(): void {
   autoUpdater.checkForUpdates().catch(() => {
@@ -129,7 +129,7 @@ export function checkForUpdatesNow(): void {
   });
 }
 
-// ─── Cleanup ────────────────────────────────────────────────────────────────
+// ─── Cleanup ──────────────────────────────────────────────────────────────────
 
 export function stopUpdater(): void {
   if (intervalId) {

@@ -4,6 +4,7 @@
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-CC%20BY--NC--ND%204.0-green)
 ![Release](https://img.shields.io/github/downloads/shivanshshrivas/tempdlm/total)
+![CI](https://github.com/shivanshshrivas/tempdlm/actions/workflows/ci.yml/badge.svg)
 
 A lightweight Windows desktop app that prevents Downloads folder clutter by letting you set auto-deletion timers the moment a file arrives.
 
@@ -33,6 +34,10 @@ Download the latest installer from [Releases](https://github.com/shivanshshrivas
 
 > [!NOTE]
 > Requires Windows 10 or 11.
+
+## Security
+
+To report a vulnerability, see [`.github/SECURITY.md`](.github/SECURITY.md).
 
 ## License
 

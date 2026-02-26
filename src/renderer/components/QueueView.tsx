@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { QueueItem, QueueItemStatus } from "../../shared/types";
+import { type QueueItem, type QueueItemStatus } from "../../shared/types";
 import { useQueueStore } from "../store/useQueueStore";
 import { formatBytes, formatCountdown, middleTruncate } from "../utils/format";
 
