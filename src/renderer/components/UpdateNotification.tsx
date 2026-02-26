@@ -19,6 +19,10 @@ function formatDate(iso: string): string {
   }
 }
 
+/** Errors that should not spawn the floating notification popup. */
+const SILENT_ERROR_RE =
+  /HttpError:\s*404|Cannot find.*latest\.yml|ENOTFOUND|ENETUNREACH|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ETIMEDOUT|ESOCKETTIMEDOUT/i;
+
 /** Strip markdown formatting and truncate to a summary. */
 function summarizeNotes(raw: string, maxLength = 200): string {
   const plain = raw
@@ -62,6 +66,8 @@ export default function UpdateNotification() {
         setState("downloaded");
       }),
       window.tempdlm.onUpdateError((message) => {
+        // Network/404 errors are not worth a popup — SettingsView handles inline feedback
+        if (SILENT_ERROR_RE.test(message)) return;
         setError(message);
         setState("error");
       }),
@@ -163,7 +169,7 @@ export default function UpdateNotification() {
       {/* Error */}
       {state === "error" && (
         <p className="text-xs text-red-400 mb-3" role="alert">
-          Update failed: {error}
+          Update failed: {error.length > 120 ? error.slice(0, 120).trimEnd() + "…" : error}
         </p>
       )}
 

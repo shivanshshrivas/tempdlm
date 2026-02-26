@@ -147,6 +147,17 @@ function AddRuleForm({ onAdd }: { onAdd: (rule: Omit<WhitelistRule, "id">) => vo
   );
 }
 
+// ─── Update error helper ─────────────────────────────────────────────────────
+
+function friendlyUpdateError(raw: string): string {
+  if (/ENOTFOUND|ENETUNREACH|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED/i.test(raw))
+    return "No internet connection.";
+  if (/ETIMEDOUT|ESOCKETTIMEDOUT|timeout/i.test(raw)) return "Connection timed out.";
+  if (/HttpError:\s*404|Cannot find.*latest\.yml/i.test(raw)) return "No releases published yet.";
+  if (/HttpError:\s*5\d\d/i.test(raw)) return "GitHub is temporarily unavailable.";
+  return "Update check failed.";
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS: UserSettings = {
@@ -166,11 +177,26 @@ export default function SettingsView() {
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState("");
   const [appVersion, setAppVersion] = useState("");
-  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "up-to-date">("idle");
+  const [updateStatus, setUpdateStatus] = useState<
+    "idle" | "checking" | "up-to-date" | "error"
+  >("idle");
+  const [updateError, setUpdateError] = useState("");
 
   useEffect(() => {
     window.tempdlm.getSettings().then(setSettings);
     window.tempdlm.getAppVersion().then(setAppVersion);
+
+    // Listen for update errors so the button can show inline feedback
+    const unsub = window.tempdlm.onUpdateError((message) => {
+      // No releases published (404) — show "Up to date" instead of an error
+      if (/HttpError:\s*404|Cannot find.*latest\.yml/i.test(message)) {
+        setUpdateStatus("up-to-date");
+        return;
+      }
+      setUpdateStatus("error");
+      setUpdateError(friendlyUpdateError(message));
+    });
+    return () => { unsub(); };
   }, []);
 
   function patch(partial: Partial<UserSettings>) {
@@ -323,26 +349,34 @@ export default function SettingsView() {
             </span>
           </Row>
           <Row label="Updates">
-            <button
-              onClick={() => {
-                setUpdateStatus("checking");
-                window.tempdlm.checkForUpdate().then(() => {
-                  // If no update-available event fires within 5s, show "up to date"
-                  setTimeout(
-                    () => setUpdateStatus((s) => (s === "checking" ? "up-to-date" : s)),
-                    5000,
-                  );
-                });
-              }}
-              disabled={updateStatus === "checking"}
-              className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 text-xs rounded transition-colors disabled:opacity-50"
-            >
-              {updateStatus === "checking"
-                ? "Checking…"
-                : updateStatus === "up-to-date"
-                  ? "Up to date"
-                  : "Check for Updates"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setUpdateStatus("checking");
+                  setUpdateError("");
+                  window.tempdlm.checkForUpdate().then(() => {
+                    // If no update-available or error event fires within 5s, show "up to date"
+                    setTimeout(
+                      () => setUpdateStatus((s) => (s === "checking" ? "up-to-date" : s)),
+                      5000,
+                    );
+                  });
+                }}
+                disabled={updateStatus === "checking"}
+                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 text-xs rounded transition-colors disabled:opacity-50"
+              >
+                {updateStatus === "checking"
+                  ? "Checking…"
+                  : updateStatus === "up-to-date"
+                    ? "Up to date"
+                    : updateStatus === "error"
+                      ? "Retry"
+                      : "Check for Updates"}
+              </button>
+              {updateStatus === "error" && (
+                <span className="text-[10px] text-red-400">{updateError}</span>
+              )}
+            </div>
           </Row>
         </Section>
       </div>

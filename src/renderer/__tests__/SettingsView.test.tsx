@@ -34,6 +34,7 @@ beforeEach(() => {
       pickFolder: mockPickFolder,
       getAppVersion: mockGetAppVersion,
       checkForUpdate: mockCheckForUpdate,
+      onUpdateError: vi.fn(() => vi.fn()),
     },
     writable: true,
     configurable: true,
