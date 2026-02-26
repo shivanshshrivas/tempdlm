@@ -8,7 +8,6 @@
 
 <img width="1919" height="1078" alt="Screenshot 2026-02-25 214520" src="https://github.com/user-attachments/assets/ec7802dc-485b-4d6f-b610-8e94b247b358" />
 
-
 A lightweight Windows desktop app that prevents Downloads folder clutter by letting you set auto-deletion timers the moment a file arrives.
 
 ## The Problem
