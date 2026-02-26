@@ -1,0 +1,19 @@
+name: Chore
+description: Documentation, refactoring, CI/CD, or maintenance tasks
+title: "[Chore]: "
+labels: ["chore", "documentation"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for documentation updates, refactoring, CI/CD changes, or other maintenance tasks.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the task or change needed.
+      placeholder: Describe the chore...
+    validations:
+      required: true
