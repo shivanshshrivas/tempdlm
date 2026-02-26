@@ -1,0 +1,224 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel redundant runs on the same branch/PR
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Standard quality gates ───────────────────────────────────────────────────
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Check renderer + shared types
+      - run: npx tsc --noEmit -p tsconfig.json
+      # Check main process + preload
+      - run: npx tsc --noEmit -p tsconfig.main.json
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Fail on high or critical severity vulnerabilities
+      - run: npm audit --audit-level=high
+
+  # ── Code maintainability ─────────────────────────────────────────────────────
+
+  maintainability:
+    name: Maintainability
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Naming conventions, complexity limits, JSDoc (see eslint.maintainability.mjs)
+      - name: ESLint maintainability rules
+        run: npm run lint:maintainability
+
+      # Enforce section headers (// ─── Name ─────) in all non-test source files
+      # over 80 lines. The ─ character is U+2500 BOX DRAWINGS LIGHT HORIZONTAL.
+      - name: Section header check
+        shell: bash
+        run: |
+          FAILED=0
+          while IFS= read -r file; do
+            lines=$(wc -l < "$file")
+            if [ "$lines" -gt 80 ]; then
+              if ! grep -qP "// \x{2500}{3} " "$file"; then
+                echo "::error file=$file::Missing section headers (// ─── Name ────) in $file ($lines lines). See CLAUDE.md § Coding Standards."
+                FAILED=1
+              fi
+            fi
+          done < <(git ls-files 'src/*.ts' 'src/*.tsx' 'src/**/*.ts' 'src/**/*.tsx' \
+                    | grep -v '__tests__')
+          exit $FAILED
+
+  # ── Sensitive file and secret scanning ───────────────────────────────────────
+
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history required for gitleaks
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  sensitive-files:
+    name: Sensitive Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for accidentally committed sensitive files
+        shell: bash
+        run: |
+          FAILED=0
+          # Patterns that must never be committed
+          FORBIDDEN=$(git ls-files | grep -E \
+            '(^|/)node_modules/|\.env$|\.env\.|^dist/|^dist-electron/|^release/|\.pem$|\.key$|\.p12$|\.pfx$|\.log$' \
+            || true)
+          if [ -n "$FORBIDDEN" ]; then
+            echo "::error::Sensitive or generated files found in git index:"
+            echo "$FORBIDDEN"
+            FAILED=1
+          fi
+          exit $FAILED
+
+  # ── Documentation integrity ──────────────────────────────────────────────────
+
+  docs-integrity:
+    name: Docs Integrity
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Verify required documentation files exist
+      - name: Required docs exist
+        shell: bash
+        run: |
+          FAILED=0
+          for f in \
+            README.md \
+            docs/security.md \
+            docs/roadmap.md \
+            docs/specifications.md \
+            .github/SECURITY.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Required documentation file missing: $f"
+              FAILED=1
+            fi
+          done
+          exit $FAILED
+
+      # Check all Markdown links are reachable
+      - name: Markdown link check
+        run: |
+          npx markdown-link-check \
+            --config .mlc-config.json \
+            README.md \
+            docs/security.md \
+            docs/roadmap.md \
+            docs/specifications.md \
+            .github/SECURITY.md \
+            || true
+        # `|| true` keeps this step non-blocking while we tune the allowlist;
+        # remove it once .mlc-config.json is confirmed stable
+
+      # On PRs: warn (non-blocking) if security-relevant source files changed
+      # but docs/security.md was not updated in the same PR
+      - name: Security docs staleness check
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || true)
+          SECURITY_CHANGED=$(echo "$CHANGED" | grep -E \
+            '^src/main/|^src/preload/|^package\.json$|^package-lock\.json$' || true)
+          DOCS_UPDATED=$(echo "$CHANGED" | grep -F 'docs/security.md' || true)
+          if [ -n "$SECURITY_CHANGED" ] && [ -z "$DOCS_UPDATED" ]; then
+            echo "::warning::Security-relevant files changed but docs/security.md was not updated."
+            echo "::warning::Changed files: $(echo "$SECURITY_CHANGED" | tr '\n' ' ')"
+            echo "::warning::Consider updating docs/security.md if the security posture changed."
+          fi
