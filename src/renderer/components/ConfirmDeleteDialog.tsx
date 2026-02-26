@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ConfirmDeletePayload } from "../../shared/types";
+import { middleTruncate } from "../utils/format";
 
 interface Props {
   payload: ConfirmDeletePayload;
@@ -60,8 +61,11 @@ export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
       aria-label="Confirm file deletion"
     >
       <p className="text-xs text-amber-400 font-medium mb-1">File may be open</p>
-      <p className="text-sm text-neutral-100 truncate mb-1" title={item.fileName}>
-        {item.fileName}
+      <p
+        className="text-sm text-neutral-100 overflow-hidden whitespace-nowrap mb-1"
+        title={item.fileName}
+      >
+        {middleTruncate(item.fileName)}
       </p>
       <p className="text-xs text-neutral-400 mb-3">
         <span className="font-medium text-neutral-300">{processLabel}</span> may have this file

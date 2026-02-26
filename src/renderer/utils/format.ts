@@ -31,6 +31,18 @@ export function formatCountdown(scheduledFor: number): string {
 }
 
 /**
+ * Truncate a string in the middle, preserving both the start and end.
+ * Useful for filenames where the extension and suffix matter.
+ * e.g. "very_long_filename_info (1).pdf" → "very_long_file…nfo (1).pdf"
+ */
+export function middleTruncate(text: string, maxLength = 48): string {
+  if (text.length <= maxLength) return text;
+  const front = Math.floor((maxLength - 1) / 2);
+  const back = maxLength - 1 - front;
+  return text.slice(0, front) + "…" + text.slice(-back);
+}
+
+/**
  * Convert a timer preset label to minutes.
  */
 export function presetToMinutes(preset: "5m" | "30m" | "2h" | "1d"): number {

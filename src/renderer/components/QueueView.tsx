@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { QueueItem, QueueItemStatus } from "../../shared/types";
 import { useQueueStore } from "../store/useQueueStore";
-import { formatBytes, formatCountdown } from "../utils/format";
+import { formatBytes, formatCountdown, middleTruncate } from "../utils/format";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -290,8 +290,11 @@ export default function QueueView() {
             >
               {/* File info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-neutral-100 truncate" title={item.filePath}>
-                  {item.fileName}
+                <p
+                  className="text-sm text-neutral-100 overflow-hidden whitespace-nowrap"
+                  title={item.filePath}
+                >
+                  {middleTruncate(item.fileName)}
                 </p>
                 <p className="text-xs text-neutral-500 mt-0.5">
                   {formatBytes(item.fileSize)}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatBytes, formatCountdown, presetToMinutes } from "../utils/format";
+import { formatBytes, formatCountdown, presetToMinutes, middleTruncate } from "../utils/format";
 
 describe("formatBytes", () => {
   it("formats 0 bytes", () => expect(formatBytes(0)).toBe("0 B"));
@@ -36,4 +36,35 @@ describe("presetToMinutes", () => {
   it("30m → 30", () => expect(presetToMinutes("30m")).toBe(30));
   it("2h → 120", () => expect(presetToMinutes("2h")).toBe(120));
   it("1d → 1440", () => expect(presetToMinutes("1d")).toBe(1440));
+});
+
+describe("middleTruncate", () => {
+  it("returns short strings unchanged", () => {
+    expect(middleTruncate("short.txt")).toBe("short.txt");
+  });
+
+  it("returns string exactly at maxLength unchanged", () => {
+    const s = "a".repeat(48);
+    expect(middleTruncate(s)).toBe(s);
+  });
+
+  it("truncates long strings with ellipsis in the middle", () => {
+    const result = middleTruncate("very_long_filename_with_important_info_at_the_end (1).pdf");
+    expect(result).toContain("…");
+    expect(result.startsWith("very_long_filename_with")).toBe(true);
+    expect(result.endsWith("(1).pdf")).toBe(true);
+  });
+
+  it("result length never exceeds maxLength", () => {
+    const long = "a".repeat(100);
+    expect([...middleTruncate(long)].length).toBeLessThanOrEqual(48);
+  });
+
+  it("respects a custom maxLength", () => {
+    const result = middleTruncate("abcdefghijklmnopqrstuvwxyz", 10);
+    expect([...result].length).toBeLessThanOrEqual(10);
+    expect(result).toContain("…");
+    expect(result.startsWith("abcd")).toBe(true);
+    expect(result.endsWith("wxyz")).toBe(true);
+  });
 });
