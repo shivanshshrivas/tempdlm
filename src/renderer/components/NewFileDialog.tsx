@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { QueueItem } from "../../shared/types";
-import { formatBytes } from "../utils/format";
+import { formatBytes, middleTruncate } from "../utils/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,8 +86,11 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <p className="text-xs text-neutral-400 mb-0.5">New file detected</p>
-          <p className="text-sm font-medium text-neutral-100 truncate" title={item.fileName}>
-            {item.fileName}
+          <p
+            className="text-sm font-medium text-neutral-100 overflow-hidden whitespace-nowrap"
+            title={item.fileName}
+          >
+            {middleTruncate(item.fileName)}
           </p>
           <p className="text-xs text-neutral-500 mt-0.5">
             {formatBytes(item.fileSize)}
