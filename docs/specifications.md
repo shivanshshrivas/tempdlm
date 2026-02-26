@@ -129,13 +129,14 @@ After evaluating the major cross-platform desktop frameworks, **Electron** is re
 
 ### Development Dependencies
 
-| Package                  | Purpose           |
-| ------------------------ | ----------------- |
-| `vitest`                 | Unit testing      |
-| `@testing-library/react` | Component testing |
-| `playwright`             | E2E testing       |
-| `eslint` + `prettier`    | Code quality      |
-| `husky` + `lint-staged`  | Pre-commit hooks  |
+| Package                  | Purpose                              |
+| ------------------------ | ------------------------------------ |
+| `vitest`                 | Unit testing                         |
+| `@testing-library/react` | Component testing                    |
+| `eslint` + `prettier`    | Linting and formatting               |
+| `typescript-eslint`      | TypeScript-aware ESLint rules        |
+| `eslint-plugin-jsdoc`    | JSDoc completeness checks            |
+| `markdown-link-check`    | Dead-link detection in Markdown docs |
 
 ---
 

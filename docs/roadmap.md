@@ -23,8 +23,12 @@ This document outlines the planned evolution of TempDLM from its Windows-only MV
 - Settings panel (folder picker, default timer, launch at startup)
 - System tray (hide-to-tray, pending count label, quick open)
 - Windows installer — NSIS via electron-builder
-- Unit test suite — 121 tests (Vitest + Testing Library)
+- Unit test suite — 155 tests across 8 files (Vitest + Testing Library)
 - ESLint (v9 flat config) + Prettier + TypeScript strict mode
+- `.gitattributes` enforcing LF line endings across the repository
+- Separate `eslint.maintainability.mjs` config (naming, complexity, JSDoc)
+- GitHub Actions CI — 9-job pipeline (lint, format, typecheck, tests, security audit, maintainability, secret scan, sensitive-file check, docs integrity)
+- `.github/SECURITY.md` vulnerability disclosure policy
 
 ---
 
