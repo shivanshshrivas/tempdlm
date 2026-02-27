@@ -73,18 +73,20 @@ jobs:
 
   format:
     name: Format
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
     runs-on: ubuntu-latest
-    # PRs are handled by auto-format above; only gate direct pushes to main
-    if: github.event_name == 'push'
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm install --no-fund
+      - run: npm ci --no-fund
       - run: npm run format:check
 
   typecheck:

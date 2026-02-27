@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { formatBytes, formatCountdown, presetToMinutes, middleTruncate } from "../utils/format";
 
 describe("formatBytes", () => {
@@ -10,6 +10,16 @@ describe("formatBytes", () => {
 });
 
 describe("formatCountdown", () => {
+  // Freeze time so Date.now() returns the same value both in the test and
+  // inside formatCountdown, preventing off-by-one-second failures on slow CI.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('returns "Overdue" for past timestamps', () => {
     expect(formatCountdown(Date.now() - 1000)).toBe("Overdue");
   });
