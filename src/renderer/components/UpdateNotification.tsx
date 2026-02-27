@@ -23,7 +23,12 @@ function formatDate(iso: string): string {
 const SILENT_ERROR_RE =
   /HttpError:\s*404|Cannot find.*latest\.yml|ENOTFOUND|ENETUNREACH|ERR_NAME_NOT_RESOLVED|ERR_INTERNET_DISCONNECTED|ETIMEDOUT|ESOCKETTIMEDOUT/i;
 
-/** Strip markdown formatting and truncate to a summary. */
+/**
+ * Strips markdown formatting and truncates the result to a plain-text summary.
+ * @param raw - Raw markdown string from the GitHub release notes.
+ * @param maxLength - Maximum character length of the returned summary.
+ * @returns Plain-text summary, truncated with "…" if longer than maxLength.
+ */
 function summarizeNotes(raw: string, maxLength = 200): string {
   const plain = raw
     .replace(/#+\s?/g, "") // headings
@@ -42,6 +47,11 @@ function summarizeNotes(raw: string, maxLength = 200): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * Floating notification panel that surfaces update availability, download
+ * progress, readiness to install, and error states.
+ * @returns The notification panel element, or null when idle or dismissed.
+ */
 export default function UpdateNotification() {
   const [state, setState] = useState<UpdateState>("idle");
   const [info, setInfo] = useState<AppUpdateInfo | null>(null);

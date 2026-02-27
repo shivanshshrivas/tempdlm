@@ -1,6 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, dialog } from "electron";
 import path from "path";
-import fs from "fs";
 import {
   IPC_EVENTS,
   IPC_INVOKE,
@@ -10,6 +9,7 @@ import {
   type SnoozePayload,
   type ConfirmResponsePayload,
 } from "../shared/types";
+import { validateSettingsPatch } from "./settingsValidator";
 import {
   initStore,
   getQueue,
@@ -174,119 +174,6 @@ function createTray(): void {
     mainWindow?.show();
     mainWindow?.focus();
   });
-}
-
-// ─── Settings validation ──────────────────────────────────────────────────────
-
-// Reject paths under these system roots to prevent watching/deleting system files.
-const BLOCKED_PATH_PREFIXES = [
-  "C:\\Windows",
-  "C:\\Program Files",
-  "C:\\Program Files (x86)",
-  "C:\\ProgramData",
-];
-
-/**
- * Validates a Partial<UserSettings> payload received from the renderer.
- * Returns null if valid, or an error string describing the first violation.
- */
-function validateSettingsPatch(patch: Partial<UserSettings>): string | null {
-  if (patch.downloadsFolder !== undefined) {
-    const raw = patch.downloadsFolder;
-    if (typeof raw !== "string" || raw.trim() === "") {
-      return "downloadsFolder must be a non-empty string";
-    }
-    if (!path.isAbsolute(raw)) {
-      return "downloadsFolder must be an absolute path";
-    }
-    let resolved: string;
-    try {
-      resolved = fs.realpathSync(raw);
-    } catch {
-      return "downloadsFolder does not exist or is not accessible";
-    }
-    let stat: fs.Stats;
-    try {
-      stat = fs.statSync(resolved);
-    } catch {
-      return "downloadsFolder does not exist";
-    }
-    if (!stat.isDirectory()) {
-      return "downloadsFolder must be a directory";
-    }
-    const upper = resolved.toUpperCase();
-    for (const prefix of BLOCKED_PATH_PREFIXES) {
-      if (upper.startsWith(prefix.toUpperCase())) {
-        return `downloadsFolder may not be a system path (${prefix})`;
-      }
-    }
-    // Write the resolved (symlink-free) path back so the rest of the app uses
-    // the canonical path.
-    patch.downloadsFolder = resolved;
-  }
-
-  if (patch.customDefaultMinutes !== undefined) {
-    const v = patch.customDefaultMinutes;
-    if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 40320) {
-      return "customDefaultMinutes must be an integer between 1 and 40320";
-    }
-  }
-
-  if (patch.defaultTimer !== undefined) {
-    const allowed = ["5m", "30m", "2h", "1d", "never", "custom"] as const;
-    if (!allowed.includes(patch.defaultTimer as (typeof allowed)[number])) {
-      return `defaultTimer must be one of: ${allowed.join(", ")}`;
-    }
-  }
-
-  if (patch.dialogPosition !== undefined) {
-    const allowed = ["center", "bottom-right", "near-tray"] as const;
-    if (!allowed.includes(patch.dialogPosition as (typeof allowed)[number])) {
-      return `dialogPosition must be one of: ${allowed.join(", ")}`;
-    }
-  }
-
-  if (patch.theme !== undefined) {
-    const allowed = ["system", "light", "dark"] as const;
-    if (!allowed.includes(patch.theme as (typeof allowed)[number])) {
-      return `theme must be one of: ${allowed.join(", ")}`;
-    }
-  }
-
-  if (patch.launchAtStartup !== undefined && typeof patch.launchAtStartup !== "boolean") {
-    return "launchAtStartup must be a boolean";
-  }
-
-  if (patch.showNotifications !== undefined && typeof patch.showNotifications !== "boolean") {
-    return "showNotifications must be a boolean";
-  }
-
-  if (patch.whitelistRules !== undefined) {
-    if (!Array.isArray(patch.whitelistRules)) {
-      return "whitelistRules must be an array";
-    }
-    for (const rule of patch.whitelistRules) {
-      if (typeof rule !== "object" || rule === null) {
-        return "Each whitelist rule must be an object";
-      }
-      if (rule.type === "extension") {
-        if (!/^\.[a-z0-9]{1,10}$/i.test(rule.value)) {
-          return `Whitelist extension rule value must match /^\\.[a-z0-9]{1,10}$/i, got: "${rule.value}"`;
-        }
-      } else if (rule.type === "filename") {
-        if (
-          typeof rule.value !== "string" ||
-          rule.value.length < 1 ||
-          rule.value.length > 255 ||
-          /[/\\]/.test(rule.value)
-        ) {
-          return `Whitelist filename rule value must be 1–255 chars with no path separators, got: "${rule.value}"`;
-        }
-      }
-    }
-  }
-
-  return null;
 }
 
 // ─── IPC rate-limiting guard ──────────────────────────────────────────────────

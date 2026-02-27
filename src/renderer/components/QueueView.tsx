@@ -153,6 +153,11 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+/**
+ * Displays and manages the list of files scheduled for deletion.
+ * Supports searching, sorting, filtering, and cancelling individual items.
+ * @returns The queue view element with virtual-scrolled file list.
+ */
 export default function QueueView() {
   const { items, isLoading, searchQuery, setSearchQuery, removeItem } = useQueueStore();
 

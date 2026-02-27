@@ -97,17 +97,14 @@ export default tseslint.config(
 
   // ── Complexity limits ────────────────────────────────────────────────────────
   // Thresholds calibrated against current codebase:
-  //   - validateSettingsPatch() has complexity 37 (documented trade-off; refactor tracked
-  //     as a follow-up issue — extract per-field sub-validators)
+  //   - validateSettingsPatch() orchestrator has complexity ~17 (8 field guards + error checks)
   //   - attemptDeletion() has complexity ~15
   //   - All other functions well within limits
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
       // Hard limits — enforced now
-      // Set to 40 to accommodate validateSettingsPatch (37); reduce as that function
-      // is refactored into smaller validators.
-      complexity: ["error", 40],
+      complexity: ["error", 20],
       "max-depth": ["error", 5],
       // Soft limits — advisory until code is refactored
       "max-lines": ["warn", { max: 600, skipBlankLines: true, skipComments: true }],
@@ -117,20 +114,21 @@ export default tseslint.config(
   },
 
   // ── JSDoc requirements ───────────────────────────────────────────────────────
-  // warn level: violations are visible in CI output but do not block merges on day 1.
-  // Tighten to "error" once existing gaps in store.ts / updater.ts are filled.
   {
     files: ["src/**/*.{ts,tsx}"],
     plugins: { jsdoc },
     rules: {
-      // Require JSDoc on exported top-level functions
+      // Require JSDoc on exported top-level function declarations.
+      // ArrowFunctionExpression is excluded — React components are defined as
+      // arrow functions by convention and their props are documented by TypeScript
+      // interfaces, so per-prop JSDoc would be redundant noise.
       "jsdoc/require-jsdoc": [
-        "warn",
+        "error",
         {
           publicOnly: true,
           require: {
             FunctionDeclaration: true,
-            ArrowFunctionExpression: false, // too noisy for React components
+            ArrowFunctionExpression: false,
             FunctionExpression: false,
             MethodDefinition: false,
             ClassDeclaration: false,
@@ -138,11 +136,13 @@ export default tseslint.config(
         },
       ],
       // Require a description sentence in every JSDoc block
-      "jsdoc/require-description": ["warn", { descriptionStyle: "body" }],
-      // Require @param for each parameter
-      "jsdoc/require-param": ["warn", { enableFixer: false }],
+      "jsdoc/require-description": ["error", { descriptionStyle: "body" }],
+      // Require @param for each parameter.
+      // checkDestructured: false — React component props are documented by the
+      // companion Props interface; repeating each in JSDoc adds noise without value.
+      "jsdoc/require-param": ["error", { enableFixer: false, checkDestructured: false }],
       // Require @returns for non-void functions
-      "jsdoc/require-returns": ["warn", { enableFixer: false }],
+      "jsdoc/require-returns": ["error", { enableFixer: false }],
     },
   },
 

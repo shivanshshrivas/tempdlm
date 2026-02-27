@@ -171,6 +171,11 @@ const DEFAULT_SETTINGS: UserSettings = {
   whitelistRules: [],
 };
 
+/**
+ * Settings panel for configuring downloads folder, timers, notifications,
+ * theme, and whitelist rules. Tracks unsaved changes before persisting.
+ * @returns The settings view element.
+ */
 export default function SettingsView() {
   const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
   const [dirty, setDirty] = useState(false);

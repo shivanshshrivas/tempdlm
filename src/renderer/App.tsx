@@ -166,6 +166,11 @@ function ConfirmQueue() {
 
 // ─── App root ─────────────────────────────────────────────────────────────────
 
+/**
+ * Root application component — renders the active view (queue or settings)
+ * and subscribes to main-process IPC events for queue and dialog updates.
+ * @returns The main application layout element.
+ */
 export default function App() {
   const [view, setView] = useState<View>("queue");
   const { setItems, updateItem, setLoading } = useQueueStore();

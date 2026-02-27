@@ -31,6 +31,12 @@ function extractReleaseNotes(info: UpdateInfo): string {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Initialises the auto-updater, wires event listeners, and schedules periodic
+ * update checks (first after CHECK_DELAY_MS, then every CHECK_INTERVAL_MS).
+ * No-ops in dev mode — electron-updater skips unpacked builds automatically.
+ * @param mainWindow - The main BrowserWindow to forward update events to.
+ */
 export function initUpdater(mainWindow: BrowserWindow): void {
   win = mainWindow;
 
@@ -89,6 +95,10 @@ export function initUpdater(mainWindow: BrowserWindow): void {
 
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
+/**
+ * Registers IPC handlers for update-related renderer invocations:
+ * check, download, install, and shell:open-external (GitHub-allowlisted).
+ */
 export function registerUpdateHandlers(): void {
   ipcMain.handle(IPC_INVOKE.UPDATE_CHECK, async () => {
     try {
@@ -123,6 +133,10 @@ export function registerUpdateHandlers(): void {
 
 // ─── Manual trigger ───────────────────────────────────────────────────────────
 
+/**
+ * Triggers an immediate update check, silently ignoring network or mode errors.
+ * Safe to call from the tray menu at any time.
+ */
 export function checkForUpdatesNow(): void {
   autoUpdater.checkForUpdates().catch(() => {
     // Silently ignore — network errors, dev mode, etc.
@@ -131,6 +145,10 @@ export function checkForUpdatesNow(): void {
 
 // ─── Cleanup ──────────────────────────────────────────────────────────────────
 
+/**
+ * Cancels the periodic update check interval and releases the window reference.
+ * Call on app quit to prevent dangling timers.
+ */
 export function stopUpdater(): void {
   if (intervalId) {
     clearInterval(intervalId);
