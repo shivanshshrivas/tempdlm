@@ -6,15 +6,15 @@ import { formatBytes, formatCountdown, middleTruncate } from "../utils/format";
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<QueueItemStatus, string> = {
-  pending: "bg-neutral-700 text-neutral-300",
-  scheduled: "bg-blue-900 text-blue-300",
-  snoozed: "bg-amber-900 text-amber-300",
-  confirming: "bg-yellow-900 text-yellow-300",
-  deleting: "bg-orange-900 text-orange-300",
-  deleted: "bg-neutral-800 text-neutral-500",
-  failed: "bg-red-900 text-red-300",
-  whitelisted: "bg-green-900 text-green-300",
-  never: "bg-purple-900 text-purple-300",
+  pending: "bg-neutral-100 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300",
+  scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  snoozed: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+  confirming: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+  deleting: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+  deleted: "bg-neutral-100 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-500",
+  failed: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+  whitelisted: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  never: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
 };
 
 const STATUS_LABELS: Record<QueueItemStatus, string> = {
@@ -50,7 +50,8 @@ function CountdownCell({ item }: { item: QueueItem }) {
     return () => clearInterval(interval);
   }, [item.scheduledFor, item.status]);
 
-  if (item.status === "deleted") return <span className="text-neutral-600">—</span>;
+  if (item.status === "deleted")
+    return <span className="text-neutral-400 dark:text-neutral-600">—</span>;
   if (!item.scheduledFor) return <span className="text-neutral-500 text-xs">Never</span>;
 
   return <span className="tabular-nums">{formatCountdown(item.scheduledFor)}</span>;
@@ -104,14 +105,14 @@ function RowActions({ item }: { item: QueueItem }) {
         <>
           <button
             onClick={handleSnooze}
-            className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
+            className="text-xs text-amber-600 hover:text-amber-500 dark:text-amber-400 dark:hover:text-amber-300 transition-colors"
             aria-label={`Snooze ${item.fileName}`}
           >
             Snooze
           </button>
           <button
             onClick={handleCancel}
-            className="text-xs text-neutral-400 hover:text-neutral-200 transition-colors"
+            className="text-xs text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
             aria-label={`Cancel timer for ${item.fileName}`}
           >
             Cancel
@@ -119,7 +120,10 @@ function RowActions({ item }: { item: QueueItem }) {
         </>
       )}
       {item.status === "failed" && (
-        <span className="text-xs text-red-400 truncate max-w-[5rem]" title={item.error}>
+        <span
+          className="text-xs text-red-500 dark:text-red-400 truncate max-w-[5rem]"
+          title={item.error}
+        >
           {item.error ?? "Unknown error"}
         </span>
       )}
@@ -129,7 +133,7 @@ function RowActions({ item }: { item: QueueItem }) {
         item.status === "whitelisted") && (
         <button
           onClick={handleRemove}
-          className="text-xs text-red-400 hover:text-red-300 transition-colors"
+          className="text-xs text-red-500 hover:text-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
           aria-label={`Remove ${item.fileName} from queue`}
         >
           Remove
@@ -148,7 +152,7 @@ function EmptyState({ filtered }: { filtered: boolean }) {
         {filtered ? "No files match your search." : "No files in queue."}
       </p>
       {!filtered && (
-        <p className="text-neutral-600 text-xs mt-1">
+        <p className="text-neutral-400 dark:text-neutral-600 text-xs mt-1">
           Files will appear here when detected in your Downloads folder.
         </p>
       )}
@@ -238,7 +242,7 @@ export default function QueueView() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-800">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-200 dark:border-neutral-800">
         {/* Search */}
         <input
           ref={searchRef}
@@ -247,7 +251,7 @@ export default function QueueView() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           aria-label="Search queue"
-          className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+          className="flex-1 bg-neutral-100 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500"
         />
 
         {/* Filter */}
@@ -259,7 +263,7 @@ export default function QueueView() {
               className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                 filterStatus === value
                   ? "bg-blue-600 text-white"
-                  : "bg-neutral-800 text-neutral-400 hover:text-neutral-200"
+                  : "bg-neutral-100 text-neutral-500 hover:text-neutral-800 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
               }`}
               aria-pressed={filterStatus === value}
             >
@@ -273,7 +277,7 @@ export default function QueueView() {
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
           aria-label="Sort by"
-          className="bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-blue-500"
+          className="bg-neutral-100 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 focus:outline-none focus:border-blue-500"
         >
           {SORT_OPTIONS.map(({ label, value }) => (
             <option key={value} value={value}>
@@ -286,7 +290,7 @@ export default function QueueView() {
         {hasOld && (
           <button
             onClick={handleClearOld}
-            className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 border border-neutral-700 text-red-400 hover:border-red-600 hover:text-red-300 transition-colors whitespace-nowrap"
+            className="px-3 py-1.5 text-xs rounded-lg bg-neutral-100 border border-neutral-200 dark:bg-neutral-800 dark:border-neutral-700 text-red-500 dark:text-red-400 hover:border-red-400 dark:hover:border-red-600 hover:text-red-400 dark:hover:text-red-300 transition-colors whitespace-nowrap"
             aria-label="Clear inactive entries"
           >
             Clear old
@@ -295,7 +299,7 @@ export default function QueueView() {
       </div>
 
       {/* Count */}
-      <div className="px-4 py-2 text-xs text-neutral-600">
+      <div className="px-4 py-2 text-xs text-neutral-400 dark:text-neutral-600">
         {filtered.length} {filtered.length === 1 ? "file" : "files"}
       </div>
 
@@ -308,12 +312,12 @@ export default function QueueView() {
             <div
               key={item.id}
               role="listitem"
-              className="flex items-center gap-4 px-4 py-3 border-b border-neutral-800/50 hover:bg-neutral-800/30 transition-colors"
+              className="flex items-center gap-4 px-4 py-3 border-b border-neutral-200/50 dark:border-neutral-800/50 hover:bg-neutral-100/30 dark:hover:bg-neutral-800/30 transition-colors"
             >
               {/* File info */}
               <div className="flex-1 min-w-0">
                 <p
-                  className="text-sm text-neutral-100 overflow-hidden whitespace-nowrap"
+                  className="text-sm text-neutral-900 dark:text-neutral-100 overflow-hidden whitespace-nowrap"
                   title={item.filePath}
                 >
                   {middleTruncate(item.fileName)}
@@ -321,7 +325,7 @@ export default function QueueView() {
                 <p className="text-xs text-neutral-500 mt-0.5">
                   {formatBytes(item.fileSize)}
                   {item.fileExtension && (
-                    <span className="ml-2 uppercase text-neutral-600">
+                    <span className="ml-2 uppercase text-neutral-400 dark:text-neutral-600">
                       {item.fileExtension.replace(".", "")}
                     </span>
                   )}
@@ -334,7 +338,7 @@ export default function QueueView() {
               </div>
 
               {/* Countdown */}
-              <div className="shrink-0 w-20 text-right text-xs text-neutral-400">
+              <div className="shrink-0 w-20 text-right text-xs text-neutral-500 dark:text-neutral-400">
                 <CountdownCell item={item} />
               </div>
 

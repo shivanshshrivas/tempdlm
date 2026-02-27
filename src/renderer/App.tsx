@@ -7,6 +7,7 @@ import NewFileDialog from "./components/NewFileDialog";
 import ConfirmDeleteDialog from "./components/ConfirmDeleteDialog";
 import UpdateNotification from "./components/UpdateNotification";
 import { playNewFileChime, playConfirmChime } from "./utils/sound";
+import { applyTheme } from "./utils/theme";
 
 // ─── Nav types ────────────────────────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ type View = "queue" | "settings";
 function Sidebar({ view, onNavigate }: { view: View; onNavigate: (v: View) => void }) {
   return (
     <nav
-      className="flex flex-col w-14 shrink-0 bg-neutral-900 border-r border-neutral-800 items-center py-4 gap-2"
+      className="flex flex-col w-14 shrink-0 bg-neutral-100 border-r border-neutral-200 dark:bg-neutral-900 dark:border-neutral-800 items-center py-4 gap-2"
       aria-label="Main navigation"
     >
       <button
@@ -28,7 +29,7 @@ function Sidebar({ view, onNavigate }: { view: View; onNavigate: (v: View) => vo
         className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
           view === "queue"
             ? "bg-blue-600 text-white"
-            : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"
+            : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200 dark:hover:text-neutral-200 dark:hover:bg-neutral-800"
         }`}
       >
         {/* List icon */}
@@ -59,7 +60,7 @@ function Sidebar({ view, onNavigate }: { view: View; onNavigate: (v: View) => vo
         className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
           view === "settings"
             ? "bg-blue-600 text-white"
-            : "text-neutral-500 hover:text-neutral-200 hover:bg-neutral-800"
+            : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200 dark:hover:text-neutral-200 dark:hover:bg-neutral-800"
         }`}
       >
         {/* Gear icon */}
@@ -193,8 +194,20 @@ export default function App() {
     return () => unsubs.forEach((fn) => fn());
   }, [setItems, setLoading, updateItem]);
 
+  // Re-apply theme when the OS dark/light preference changes (for "system" mode).
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    function handleChange() {
+      window.tempdlm.getSettings().then((s) => {
+        if (s.theme === "system") applyTheme("system");
+      });
+    }
+    mq.addEventListener("change", handleChange);
+    return () => mq.removeEventListener("change", handleChange);
+  }, []);
+
   return (
-    <div className="flex h-screen bg-neutral-950 text-neutral-100 font-sans">
+    <div className="flex h-screen bg-white text-neutral-900 font-sans dark:bg-neutral-950 dark:text-neutral-100">
       <Sidebar view={view} onNavigate={setView} />
 
       <main className="flex-1 min-w-0 overflow-hidden">

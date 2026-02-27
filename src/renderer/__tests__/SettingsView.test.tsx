@@ -5,6 +5,9 @@ import userEvent from "@testing-library/user-event";
 import SettingsView from "../components/SettingsView";
 import { type UserSettings } from "../../shared/types";
 
+// applyTheme is called on save — mock it so tests don't manipulate document.documentElement
+vi.mock("../utils/theme", () => ({ applyTheme: vi.fn() }));
+
 // ─── Mock window.tempdlm ─────────────────────────────────────────────────────
 
 const mockGetSettings = vi.fn();
@@ -269,6 +272,58 @@ describe("SettingsView", () => {
       await waitFor(() => {
         expect(screen.getByText("C:\\Users\\Test\\Downloads")).toBeInTheDocument();
       });
+    });
+  });
+
+  describe("theme selector", () => {
+    it("renders System, Light, and Dark buttons", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
+      expect(screen.getByRole("button", { name: "System" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Light" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Dark" })).toBeInTheDocument();
+    });
+
+    it("marks the current theme as pressed", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByText("C:\\Users\\Test\\Downloads"));
+      expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
+      expect(screen.getByRole("button", { name: "Light" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+      expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("updates selection when a theme button is clicked", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByRole("button", { name: "System" }));
+      await userEvent.click(screen.getByRole("button", { name: "Dark" }));
+      expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "System" })).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
+    });
+
+    it("saves the selected theme when Save is clicked", async () => {
+      render(<SettingsView />);
+      await waitFor(() => screen.getByRole("button", { name: "System" }));
+      await userEvent.click(screen.getByRole("button", { name: "Light" }));
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      expect(mockUpdateSettings).toHaveBeenCalledWith(expect.objectContaining({ theme: "light" }));
+    });
+
+    it("calls applyTheme after a successful save", async () => {
+      const { applyTheme } = await import("../utils/theme");
+      render(<SettingsView />);
+      await waitFor(() => screen.getByRole("button", { name: "System" }));
+      await userEvent.click(screen.getByRole("button", { name: "Dark" }));
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      await waitFor(() => expect(applyTheme).toHaveBeenCalledWith("dark"));
     });
   });
 });

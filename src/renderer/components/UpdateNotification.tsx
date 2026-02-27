@@ -115,7 +115,7 @@ export default function UpdateNotification() {
 
   return (
     <div
-      className="fixed top-4 right-4 w-80 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl p-4 z-50"
+      className="fixed top-4 right-4 w-80 bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700 rounded-xl shadow-2xl p-4 z-50"
       role="dialog"
       aria-label="Application update"
     >
@@ -123,9 +123,9 @@ export default function UpdateNotification() {
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="text-xs text-blue-400 font-medium">Update Available</p>
+            <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Update Available</p>
             {info && (
-              <span className="text-[10px] font-mono bg-blue-900/50 text-blue-300 px-1.5 py-0.5 rounded">
+              <span className="text-[10px] font-mono bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">
                 v{info.version}
               </span>
             )}
@@ -134,7 +134,7 @@ export default function UpdateNotification() {
         </div>
         <button
           onClick={handleDismiss}
-          className="ml-2 text-neutral-500 hover:text-neutral-300 text-lg leading-none flex-shrink-0"
+          className="ml-2 text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 text-lg leading-none flex-shrink-0"
           aria-label="Dismiss update notification"
         >
           ×
@@ -144,13 +144,13 @@ export default function UpdateNotification() {
       {/* Release notes summary */}
       {state === "available" && info?.releaseNotes && (
         <div className="mb-3">
-          <p className="text-xs text-neutral-400 mb-1">What's new:</p>
-          <p className="text-xs text-neutral-300 leading-relaxed">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-1">What's new:</p>
+          <p className="text-xs text-neutral-700 dark:text-neutral-300 leading-relaxed">
             {summarizeNotes(info.releaseNotes)}
           </p>
           <button
             onClick={handleViewNotes}
-            className="text-[10px] text-blue-400 hover:text-blue-300 mt-1 transition-colors"
+            className="text-[10px] text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 mt-1 transition-colors"
           >
             View full release notes
           </button>
@@ -160,8 +160,8 @@ export default function UpdateNotification() {
       {/* Download progress */}
       {state === "downloading" && (
         <div className="mb-3">
-          <p className="text-xs text-neutral-400 mb-2">Downloading update…</p>
-          <div className="w-full bg-neutral-800 rounded-full h-1.5">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Downloading update…</p>
+          <div className="w-full bg-neutral-200 dark:bg-neutral-800 rounded-full h-1.5">
             <div
               className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
               style={{ width: `${Math.round(progress?.percent ?? 0)}%` }}
@@ -173,12 +173,14 @@ export default function UpdateNotification() {
 
       {/* Downloaded */}
       {state === "downloaded" && (
-        <p className="text-xs text-green-400 mb-3">Update downloaded. Restart to apply.</p>
+        <p className="text-xs text-green-600 dark:text-green-400 mb-3">
+          Update downloaded. Restart to apply.
+        </p>
       )}
 
       {/* Error */}
       {state === "error" && (
-        <p className="text-xs text-red-400 mb-3" role="alert">
+        <p className="text-xs text-red-500 dark:text-red-400 mb-3" role="alert">
           Update failed: {error.length > 120 ? error.slice(0, 120).trimEnd() + "…" : error}
         </p>
       )}
@@ -204,7 +206,7 @@ export default function UpdateNotification() {
             </button>
             <button
               onClick={handleDismiss}
-              className="py-1.5 px-3 text-sm rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 transition-colors"
+              className="py-1.5 px-3 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 transition-colors"
             >
               Later
             </button>
@@ -218,7 +220,7 @@ export default function UpdateNotification() {
               setError("");
               window.tempdlm.checkForUpdate();
             }}
-            className="flex-1 py-1.5 text-sm rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-colors"
+            className="flex-1 py-1.5 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors"
           >
             Retry
           </button>

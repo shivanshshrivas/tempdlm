@@ -29,6 +29,7 @@ Pick 5 minutes, 30 minutes, 2 hours, 1 day, or Never - then forget about it. Whe
 - **Whitelist rules** - Auto-handle file types (e.g. never delete `.exe` files)
 - **System tray** - Runs quietly in the background
 - **Persistent queue** - Timers survive app restarts
+- **Light mode / system theme** - Follows OS dark/light preference, or set it manually in Settings
 
 ## Installation
 
