@@ -8,7 +8,8 @@ export type QueueItemStatus =
   | "deleting"
   | "deleted"
   | "failed"
-  | "whitelisted";
+  | "whitelisted"
+  | "never";
 
 export interface QueueItem {
   id: string;

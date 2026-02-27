@@ -354,7 +354,7 @@ function scheduleJobAt(itemId: string, fireAt: Date, win: BrowserWindow): void {
 
 /**
  * Schedule a file for deletion in `minutes` from now.
- * Pass minutes=null to mark as "never delete" (status stays pending, no job).
+ * Pass minutes=null to mark as "never delete" (status becomes "never", no job scheduled).
  * @param item - The queue item to schedule.
  * @param minutes - Minutes until deletion, or null to mark as "never delete".
  * @param win - The main BrowserWindow for sending IPC events to the renderer.
@@ -365,7 +365,7 @@ export function scheduleItem(item: QueueItem, minutes: number | null, win: Brows
   if (existing) existing.cancel();
 
   if (minutes === null) {
-    patchQueueItem(item.id, { status: "pending", scheduledFor: null });
+    patchQueueItem(item.id, { status: "never", scheduledFor: null });
     return;
   }
 
@@ -424,6 +424,15 @@ export function reconcileOnStartup(win: BrowserWindow): void {
   const queue = getQueue();
   const now = Date.now();
   let overdueDelay = 0;
+
+  // One-time migration: items persisted before the "never" status was introduced
+  // have status "pending" with a null scheduledFor. Promote them so they render
+  // correctly with the purple "Never" badge and can be individually removed.
+  for (const item of queue) {
+    if (item.status === "pending" && item.scheduledFor === null) {
+      patchQueueItem(item.id, { status: "never" });
+    }
+  }
 
   for (const item of queue) {
     if (item.status === "deleted" || item.status === "failed" || item.status === "whitelisted") {
