@@ -43,7 +43,7 @@ const mockSettings = {
 
 vi.mock("../store", () => ({
   getSettings: () => mockSettings,
-  getQueue: () => [],
+  getQueue: vi.fn(() => []),
   upsertQueueItem: vi.fn(),
   patchQueueItem: vi.fn(),
   initStore: vi.fn(),
@@ -56,11 +56,13 @@ vi.mock("fs", () => ({
   },
 }));
 
-// Mock chokidar — we capture the 'add' handler and call it manually in tests
+// Mock chokidar — we capture the 'add' and 'change' handlers and call them manually in tests
 let capturedAddHandler: ((filePath: string) => void) | null = null;
+let capturedChangeHandler: ((filePath: string) => void) | null = null;
 const mockWatcherInstance = {
   on: vi.fn((event: string, handler: (fp: string) => void) => {
     if (event === "add") capturedAddHandler = handler;
+    if (event === "change") capturedChangeHandler = handler;
     return mockWatcherInstance;
   }),
   close: vi.fn(),
@@ -80,7 +82,7 @@ import {
   stopWatcher,
   _getDebounceTimers,
 } from "../fileWatcher";
-import { upsertQueueItem } from "../store";
+import { upsertQueueItem, patchQueueItem, getQueue } from "../store";
 import fs from "fs";
 
 // ─── Fake BrowserWindow ───────────────────────────────────────────────────────
@@ -302,5 +304,123 @@ describe("startWatcher / stopWatcher", () => {
     // No item should be created since we stopped before the timer fired
     expect(upsertQueueItem).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+});
+
+describe("change event — file size updates", () => {
+  const FILE_PATH = "C:\\Users\\test\\Downloads\\video.mp4";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedChangeHandler = null;
+    stopWatcher();
+  });
+
+  afterEach(() => {
+    stopWatcher();
+  });
+
+  it("registers a change handler when the watcher starts", () => {
+    const win = makeFakeWindow();
+    startWatcher(win, mockSettings);
+    expect(capturedChangeHandler).not.toBeNull();
+  });
+
+  it("patches fileSize and sends queue:updated when a tracked file grows", () => {
+    const win = makeFakeWindow();
+    startWatcher(win, mockSettings);
+
+    const activeItem = {
+      id: "item-1",
+      filePath: FILE_PATH,
+      fileName: "video.mp4",
+      fileSize: 2048,
+      fileExtension: ".mp4",
+      inode: 1001,
+      detectedAt: Date.now(),
+      scheduledFor: null,
+      status: "scheduled" as const,
+      snoozeCount: 0,
+      clusterId: null,
+    };
+
+    // Queue contains the active item; stat reports a larger size
+    vi.mocked(getQueue).mockReturnValue([activeItem]);
+    vi.mocked(fs.statSync).mockReturnValue({ size: 4096 } as ReturnType<typeof fs.statSync>);
+
+    capturedChangeHandler!(FILE_PATH);
+
+    expect(patchQueueItem).toHaveBeenCalledWith("item-1", { fileSize: 4096 });
+    expect(win.webContents.send).toHaveBeenCalledWith(IPC_EVENTS.QUEUE_UPDATED, expect.any(Array));
+  });
+
+  it("skips patch and IPC when the file size is unchanged", () => {
+    const win = makeFakeWindow();
+    startWatcher(win, mockSettings);
+
+    const activeItem = {
+      id: "item-2",
+      filePath: FILE_PATH,
+      fileName: "video.mp4",
+      fileSize: 2048,
+      fileExtension: ".mp4",
+      inode: 1002,
+      detectedAt: Date.now(),
+      scheduledFor: null,
+      status: "scheduled" as const,
+      snoozeCount: 0,
+      clusterId: null,
+    };
+
+    vi.mocked(getQueue).mockReturnValue([activeItem]);
+    // stat returns the same size as the stored item
+    vi.mocked(fs.statSync).mockReturnValue({ size: 2048 } as ReturnType<typeof fs.statSync>);
+
+    capturedChangeHandler!(FILE_PATH);
+
+    expect(patchQueueItem).not.toHaveBeenCalled();
+    expect(win.webContents.send).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the changed file is not tracked in the queue", () => {
+    const win = makeFakeWindow();
+    startWatcher(win, mockSettings);
+
+    // Queue is empty — file is not tracked
+    vi.mocked(getQueue).mockReturnValue([]);
+
+    capturedChangeHandler!(FILE_PATH);
+
+    expect(patchQueueItem).not.toHaveBeenCalled();
+    expect(win.webContents.send).not.toHaveBeenCalled();
+  });
+
+  it("handles stat failure gracefully (ENOENT) without crashing", () => {
+    const win = makeFakeWindow();
+    startWatcher(win, mockSettings);
+
+    const activeItem = {
+      id: "item-3",
+      filePath: FILE_PATH,
+      fileName: "video.mp4",
+      fileSize: 2048,
+      fileExtension: ".mp4",
+      inode: 1003,
+      detectedAt: Date.now(),
+      scheduledFor: null,
+      status: "scheduled" as const,
+      snoozeCount: 0,
+      clusterId: null,
+    };
+
+    vi.mocked(getQueue).mockReturnValue([activeItem]);
+    vi.mocked(fs.statSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+    });
+
+    // Should not throw
+    expect(() => capturedChangeHandler!(FILE_PATH)).not.toThrow();
+    expect(patchQueueItem).not.toHaveBeenCalled();
+    expect(win.webContents.send).not.toHaveBeenCalled();
   });
 });
