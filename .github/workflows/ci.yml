@@ -17,17 +17,20 @@ jobs:
   auto-format:
     name: Auto Format
     runs-on: ubuntu-latest
-    # Only auto-format on PRs; skip if the commit was already made by this job (loop guard)
-    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
-    permissions:
-      contents: write
+    # Only auto-format on PRs. Prettier is idempotent so no loop guard is needed —
+    # if the bot already fixed formatting, this job will find no changes and skip
+    # the commit, producing changes_detected=false and letting CI proceed normally.
+    if: github.event_name == 'pull_request'
+    outputs:
+      changes_detected: ${{ steps.auto-commit.outputs.changes_detected }}
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # PAT so the commit triggers a new workflow run on the PR branch
+          token: ${{ secrets.AUTO_FORMAT_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,6 +39,7 @@ jobs:
       - name: Run Prettier
         run: npm run format
       - name: Commit formatting fixes
+        id: auto-commit
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "style: auto-format with Prettier"
@@ -45,25 +49,21 @@ jobs:
 
   # ── Standard quality gates ───────────────────────────────────────────────────
   #
-  # These jobs depend on auto-format so they run after any formatting fixes are
-  # committed. Each checks out the branch tip (github.head_ref) so it picks up
-  # the auto-format commit on PRs; on direct pushes to main github.head_ref is
-  # empty and the expression falls back to github.sha (the pushed commit).
-  #
-  # The if condition allows the job to run when auto-format was skipped (push to
-  # main) or succeeded, and skips it only if auto-format itself failed.
+  # All jobs depend on auto-format and will skip when it committed fixes
+  # (changes_detected=true). The PAT commit triggers a fresh workflow run where
+  # auto-format finds nothing to fix and these jobs proceed normally.
+  # On direct pushes to main auto-format is skipped (result=skipped) and all
+  # jobs run immediately.
 
   lint:
     name: Lint
     needs: [auto-format]
-    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -74,14 +74,12 @@ jobs:
   format:
     name: Format
     needs: [auto-format]
-    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -92,14 +90,12 @@ jobs:
   typecheck:
     name: Type Check
     needs: [auto-format]
-    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -113,14 +109,12 @@ jobs:
   test:
     name: Tests
     needs: [auto-format]
-    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -131,14 +125,12 @@ jobs:
   security-audit:
     name: Security Audit
     needs: [auto-format]
-    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -152,14 +144,12 @@ jobs:
   maintainability:
     name: Maintainability
     needs: [auto-format]
-    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -9,6 +9,7 @@
 
 ## Reporting a Vulnerability
 
+
 **Please do not report security vulnerabilities through public GitHub issues.**
 
 ### Option 1 — GitHub Private Vulnerability Reporting (preferred)
