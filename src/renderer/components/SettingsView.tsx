@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { type UserSettings, type TimerPreset, type WhitelistRule } from "../../shared/types";
+import { applyTheme } from "../utils/theme";
 
 // ─── Timer preset selector ─────────────────────────────────────────────────────
 
@@ -16,7 +17,7 @@ const TIMER_PRESETS: { label: string; value: TimerPreset }[] = [
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-8">
-      <h2 className="text-sm font-semibold text-neutral-400 uppercase tracking-wider mb-4">
+      <h2 className="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mb-4">
         {title}
       </h2>
       <div className="space-y-4">{children}</div>
@@ -35,7 +36,7 @@ function Row({
 }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <label htmlFor={htmlFor} className="text-sm text-neutral-300 flex-1">
+      <label htmlFor={htmlFor} className="text-sm text-neutral-600 dark:text-neutral-300 flex-1">
         {label}
       </label>
       <div className="shrink-0">{children}</div>
@@ -53,15 +54,17 @@ function WhitelistRuleRow({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2 bg-neutral-800 rounded-lg">
-      <span className="flex-1 text-sm text-neutral-300 font-mono">{rule.value}</span>
-      <span className="text-xs text-neutral-500 capitalize">
+    <div className="flex items-center gap-3 px-3 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+      <span className="flex-1 text-sm text-neutral-700 dark:text-neutral-300 font-mono">
+        {rule.value}
+      </span>
+      <span className="text-xs text-neutral-500">
         {rule.action === "never-delete" ? "Never delete" : "Auto-delete"}
       </span>
       <button
         onClick={() => onRemove(rule.id)}
         aria-label={`Remove whitelist rule ${rule.value}`}
-        className="text-xs text-red-400 hover:text-red-300 transition-colors"
+        className="text-xs text-red-500 hover:text-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
       >
         Remove
       </button>
@@ -120,13 +123,13 @@ function AddRuleForm({ onAdd }: { onAdd: (rule: Omit<WhitelistRule, "id">) => vo
           onChange={(e) => handleValueChange(e.target.value)}
           placeholder=".pdf, .exe, …"
           aria-label="New whitelist rule value"
-          className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-blue-500"
+          className="flex-1 bg-white border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-700 rounded-lg px-3 py-1.5 text-sm text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-blue-500"
         />
         <select
           value={action}
           onChange={(e) => setAction(e.target.value as WhitelistRule["action"])}
           aria-label="Whitelist rule action"
-          className="bg-neutral-800 border border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-300 focus:outline-none focus:border-blue-500"
+          className="bg-white border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-700 rounded-lg px-2 py-1.5 text-xs text-neutral-700 dark:text-neutral-300 focus:outline-none focus:border-blue-500"
         >
           <option value="never-delete">Never delete</option>
           <option value="auto-delete-after">Auto-delete</option>
@@ -139,7 +142,7 @@ function AddRuleForm({ onAdd }: { onAdd: (rule: Omit<WhitelistRule, "id">) => vo
         </button>
       </form>
       {ruleError && (
-        <p className="text-xs text-red-400" role="alert">
+        <p className="text-xs text-red-500 dark:text-red-400" role="alert">
           {ruleError}
         </p>
       )}
@@ -170,6 +173,12 @@ const DEFAULT_SETTINGS: UserSettings = {
   dialogPosition: "bottom-right",
   whitelistRules: [],
 };
+
+const THEME_OPTIONS: { label: string; value: UserSettings["theme"] }[] = [
+  { label: "System", value: "system" },
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+];
 
 /**
  * Settings panel for configuring downloads folder, timers, notifications,
@@ -224,6 +233,8 @@ export default function SettingsView() {
     if (result.success) {
       setDirty(false);
       setSaved(true);
+      // Apply the new theme immediately without requiring a restart.
+      applyTheme(settings.theme);
     } else {
       setSaveError(result.error ?? "Failed to save settings");
     }
@@ -243,7 +254,9 @@ export default function SettingsView() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="flex flex-col px-6 py-6 max-w-2xl mx-auto w-full">
-        <h1 className="text-lg font-semibold text-neutral-100 mb-6">Settings</h1>
+        <h1 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-6">
+          Settings
+        </h1>
 
         {/* General */}
         <Section title="General">
@@ -251,7 +264,7 @@ export default function SettingsView() {
             <div className="flex items-center gap-2">
               <span
                 id="downloads-folder"
-                className="text-xs text-neutral-400 max-w-48 truncate"
+                className="text-xs text-neutral-500 dark:text-neutral-400 max-w-48 truncate"
                 title={settings.downloadsFolder}
               >
                 {settings.downloadsFolder || "Not set"}
@@ -259,7 +272,7 @@ export default function SettingsView() {
               <button
                 onClick={handlePickFolder}
                 aria-label="Browse for downloads folder"
-                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 text-xs rounded transition-colors"
+                className="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-300 text-xs rounded transition-colors"
               >
                 Browse…
               </button>
@@ -289,6 +302,28 @@ export default function SettingsView() {
           </Row>
         </Section>
 
+        {/* Appearance */}
+        <Section title="Appearance">
+          <Row label="Theme">
+            <div className="flex gap-2">
+              {THEME_OPTIONS.map(({ label, value }) => (
+                <button
+                  key={value}
+                  onClick={() => patch({ theme: value })}
+                  aria-pressed={settings.theme === value}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                    settings.theme === value
+                      ? "bg-blue-600 text-white"
+                      : "bg-neutral-100 text-neutral-600 hover:text-neutral-900 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </Row>
+        </Section>
+
         {/* Timer */}
         <Section title="Default timer">
           <div className="flex gap-2">
@@ -300,7 +335,7 @@ export default function SettingsView() {
                 className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                   settings.defaultTimer === value
                     ? "bg-blue-600 text-white"
-                    : "bg-neutral-800 text-neutral-400 hover:text-neutral-200"
+                    : "bg-neutral-100 text-neutral-600 hover:text-neutral-900 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-200"
                 }`}
               >
                 {label}
@@ -316,7 +351,7 @@ export default function SettingsView() {
           </p>
           <div className="space-y-2">
             {settings.whitelistRules.length === 0 ? (
-              <p className="text-xs text-neutral-600">No rules added.</p>
+              <p className="text-xs text-neutral-400 dark:text-neutral-600">No rules added.</p>
             ) : (
               settings.whitelistRules.map((rule) => (
                 <WhitelistRuleRow key={rule.id} rule={rule} onRemove={handleRemoveRule} />
@@ -334,15 +369,19 @@ export default function SettingsView() {
             className={`px-4 py-2 text-sm rounded-lg transition-colors ${
               dirty
                 ? "bg-blue-600 hover:bg-blue-500 text-white"
-                : "bg-neutral-700 text-neutral-400 cursor-default"
+                : "bg-neutral-200 dark:bg-neutral-700 text-neutral-400 cursor-default"
             }`}
           >
             {dirty ? "Save changes" : "Saved"}
           </button>
-          {dirty && !saveError && <span className="text-xs text-amber-400">Unsaved changes</span>}
-          {saved && !dirty && <span className="text-xs text-green-400">Settings saved.</span>}
+          {dirty && !saveError && (
+            <span className="text-xs text-amber-500 dark:text-amber-400">Unsaved changes</span>
+          )}
+          {saved && !dirty && (
+            <span className="text-xs text-green-600 dark:text-green-400">Settings saved.</span>
+          )}
           {saveError && (
-            <span className="text-xs text-red-400" role="alert">
+            <span className="text-xs text-red-500 dark:text-red-400" role="alert">
               {saveError}
             </span>
           )}
@@ -351,7 +390,7 @@ export default function SettingsView() {
         {/* About */}
         <Section title="About">
           <Row label="Version">
-            <span className="text-xs text-neutral-400 font-mono">
+            <span className="text-xs text-neutral-500 dark:text-neutral-400 font-mono">
               {appVersion ? `v${appVersion}` : "—"}
             </span>
           </Row>
@@ -370,7 +409,7 @@ export default function SettingsView() {
                   });
                 }}
                 disabled={updateStatus === "checking"}
-                className="px-2 py-1 bg-neutral-700 hover:bg-neutral-600 text-neutral-300 text-xs rounded transition-colors disabled:opacity-50"
+                className="px-2 py-1 bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-300 text-xs rounded transition-colors disabled:opacity-50"
               >
                 {updateStatus === "checking"
                   ? "Checking…"
@@ -381,7 +420,7 @@ export default function SettingsView() {
                       : "Check for Updates"}
               </button>
               {updateStatus === "error" && (
-                <span className="text-[10px] text-red-400">{updateError}</span>
+                <span className="text-[10px] text-red-500 dark:text-red-400">{updateError}</span>
               )}
             </div>
           </Row>

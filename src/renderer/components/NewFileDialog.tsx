@@ -84,16 +84,16 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
 
   return (
     <div
-      className="fixed bottom-4 right-4 w-80 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl p-4 z-50"
+      className="fixed bottom-4 right-4 w-80 bg-white border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700 rounded-xl shadow-2xl p-4 z-50"
       role="dialog"
       aria-label="New file detected"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-neutral-400 mb-0.5">New file detected</p>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-0.5">New file detected</p>
           <p
-            className="text-sm font-medium text-neutral-100 overflow-hidden whitespace-nowrap"
+            className="text-sm font-medium text-neutral-900 dark:text-neutral-100 overflow-hidden whitespace-nowrap"
             title={item.fileName}
           >
             {middleTruncate(item.fileName)}
@@ -101,7 +101,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
           <p className="text-xs text-neutral-500 mt-0.5">
             {formatBytes(item.fileSize)}
             {item.fileExtension && (
-              <span className="ml-2 uppercase text-neutral-600">
+              <span className="ml-2 uppercase text-neutral-400 dark:text-neutral-600">
                 {item.fileExtension.replace(".", "")}
               </span>
             )}
@@ -109,7 +109,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
         </div>
         <button
           onClick={onDismiss}
-          className="ml-2 text-neutral-500 hover:text-neutral-300 text-lg leading-none flex-shrink-0"
+          className="ml-2 text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300 text-lg leading-none flex-shrink-0"
           aria-label="Dismiss"
         >
           ×
@@ -117,7 +117,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
       </div>
 
       {/* Prompt */}
-      <p className="text-xs text-neutral-400 mb-2">Delete after…</p>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Delete after…</p>
 
       {/* Preset buttons */}
       <div className="grid grid-cols-2 gap-2 mb-2">
@@ -125,7 +125,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
           <button
             key={label}
             onClick={() => handlePreset(minutes)}
-            className="py-1.5 px-3 text-sm rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-colors"
+            className="py-1.5 px-3 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors"
           >
             {label}
           </button>
@@ -136,13 +136,13 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
       <div className="grid grid-cols-2 gap-2 mb-2">
         <button
           onClick={() => setShowCustom((v) => !v)}
-          className="py-1.5 px-3 text-sm rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition-colors"
+          className="py-1.5 px-3 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 transition-colors"
         >
           Custom…
         </button>
         <button
           onClick={handleNever}
-          className="py-1.5 px-3 text-sm rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-400 transition-colors"
+          className="py-1.5 px-3 text-sm rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 transition-colors"
         >
           Never
         </button>
@@ -160,13 +160,13 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
               onChange={(e) => handleCustomValueChange(e.target.value)}
               placeholder="Amount"
               aria-label="Custom duration amount"
-              className="flex-1 min-w-0 bg-neutral-800 border border-neutral-600 rounded-lg px-3 py-1.5 text-sm text-neutral-100 focus:outline-none focus:border-blue-500"
+              className="flex-1 min-w-0 bg-white border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-600 rounded-lg px-3 py-1.5 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-blue-500"
             />
             <select
               value={customUnit}
               onChange={(e) => setCustomUnit(e.target.value as typeof customUnit)}
               aria-label="Custom duration unit"
-              className="bg-neutral-800 border border-neutral-600 rounded-lg px-2 py-1.5 text-sm text-neutral-100 focus:outline-none focus:border-blue-500"
+              className="bg-white border border-neutral-300 dark:bg-neutral-800 dark:border-neutral-600 rounded-lg px-2 py-1.5 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:border-blue-500"
             >
               <option value="minutes">min</option>
               <option value="hours">hrs</option>
@@ -174,7 +174,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
             </select>
           </div>
           {customError && (
-            <p className="text-xs text-red-400" role="alert">
+            <p className="text-xs text-red-500 dark:text-red-400" role="alert">
               {customError}
             </p>
           )}
