@@ -2,6 +2,11 @@ import fs from "fs";
 import path from "path";
 import type { UserSettings } from "../shared/types";
 
+// Always use win32 path parsing — this app runs on Windows and receives
+// Windows-style paths. Using path.win32 ensures tests on Linux also parse
+// backslash-separated paths correctly.
+const winPath = path.win32;
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Reject paths under these system roots to prevent watching/deleting system files.
@@ -23,7 +28,7 @@ function validateDownloadsFolderField(raw: string): string | { error: string } {
   if (typeof raw !== "string" || raw.trim() === "") {
     return { error: "downloadsFolder must be a non-empty string" };
   }
-  if (!path.isAbsolute(raw)) {
+  if (!winPath.isAbsolute(raw)) {
     return { error: "downloadsFolder must be an absolute path" };
   }
   let resolved: string;
