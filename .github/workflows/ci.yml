@@ -12,15 +12,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Auto-formatting ───────────────────────────────────────────────────────────
+
+  auto-format:
+    name: Auto Format
+    runs-on: ubuntu-latest
+    # Only auto-format on PRs; skip if the commit was already made by this job (loop guard)
+    if: github.event_name == 'pull_request' && github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-fund
+      - name: Run Prettier
+        run: npm run format
+      - name: Commit formatting fixes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format with Prettier"
+          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          commit_user_name: github-actions[bot]
+          commit_user_email: github-actions[bot]@users.noreply.github.com
+
   # ── Standard quality gates ───────────────────────────────────────────────────
+  #
+  # These jobs depend on auto-format so they run after any formatting fixes are
+  # committed. Each checks out the branch tip (github.head_ref) so it picks up
+  # the auto-format commit on PRs; on direct pushes to main github.head_ref is
+  # empty and the expression falls back to github.sha (the pushed commit).
+  #
+  # The if condition allows the job to run when auto-format was skipped (push to
+  # main) or succeeded, and skips it only if auto-format itself failed.
 
   lint:
     name: Lint
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,7 +74,7 @@ jobs:
   format:
     name: Format
     runs-on: ubuntu-latest
-    # PRs are handled by the auto-format workflow; only gate direct pushes to main
+    # PRs are handled by auto-format above; only gate direct pushes to main
     if: github.event_name == 'push'
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -46,11 +89,15 @@ jobs:
 
   typecheck:
     name: Type Check
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -63,11 +110,15 @@ jobs:
 
   test:
     name: Tests
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -77,11 +128,15 @@ jobs:
 
   security-audit:
     name: Security Audit
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -94,11 +149,15 @@ jobs:
 
   maintainability:
     name: Maintainability
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -128,6 +187,9 @@ jobs:
           exit $FAILED
 
   # ── Sensitive file and secret scanning ───────────────────────────────────────
+  #
+  # These jobs inspect git history and the committed file list — they do not
+  # validate source code quality, so they run independently of auto-format.
 
   secret-scan:
     name: Secret Scan
