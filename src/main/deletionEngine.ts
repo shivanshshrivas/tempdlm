@@ -69,6 +69,8 @@ const RM_CS = [
  * this detects ALL openers regardless of their file-sharing flags, which is
  * impossible to do from pure Node.js fs calls.
  * Falls back to a rename probe if PowerShell is unavailable.
+ * @param filePath - Absolute path to the file to test.
+ * @returns True if the file is locked by any process, false otherwise.
  */
 function isFileLocked(filePath: string): boolean {
   // PowerShell single-quoted strings are fully literal — only single-quotes need escaping.
@@ -108,6 +110,8 @@ function isFileLocked(filePath: string): boolean {
  * Catches editors like Notepad that load a file into memory and release the
  * file handle — the Restart Manager won't detect these.
  * Returns empty array on failure (fail-open — deletion proceeds).
+ * @param fileName - The file's base name to search for in window titles.
+ * @returns Array of process names (at most 32 chars each) whose titles match.
  */
 function isFileInWindowTitle(fileName: string): string[] {
   const psName = fileName.replace(/'/g, "''");
@@ -135,8 +139,11 @@ function isFileInWindowTitle(fileName: string): string[] {
 
 /**
  * Returns a Promise that resolves when the user responds to the confirmation
- * dialog, or after CONFIRM_TIMEOUT_MS (defaulting to 'delete' since the user
+ * dialog, or after the given timeout (defaulting to 'delete' since the user
  * intentionally set the timer).
+ * @param itemId - The queue item ID awaiting user confirmation.
+ * @param timeoutMs - Milliseconds before automatically resolving to 'delete'.
+ * @returns A Promise resolving to the user's decision.
  */
 function waitForConfirmation(itemId: string, timeoutMs: number): Promise<"delete" | "keep"> {
   return new Promise<"delete" | "keep">((resolve) => {
@@ -151,6 +158,8 @@ function waitForConfirmation(itemId: string, timeoutMs: number): Promise<"delete
 
 /**
  * Called by the IPC handler when the user responds to a confirmation dialog.
+ * @param itemId - The queue item ID the user is responding to.
+ * @param decision - Whether to proceed with deletion or keep the file.
  */
 export function resolveConfirmation(itemId: string, decision: "delete" | "keep"): void {
   const pending = pendingConfirmations.get(itemId);
@@ -200,6 +209,8 @@ function showConfirmDeleteNotification(item: QueueItem, processNames: string[]):
 /**
  * Core deletion attempt. Called when a job fires.
  * Handles ENOENT, lock detection, snooze logic, and the actual trash call.
+ * @param itemId - The queue item ID to attempt deletion for.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void> {
   const item = getQueueItem(itemId);
@@ -344,6 +355,9 @@ function scheduleJobAt(itemId: string, fireAt: Date, win: BrowserWindow): void {
 /**
  * Schedule a file for deletion in `minutes` from now.
  * Pass minutes=null to mark as "never delete" (status stays pending, no job).
+ * @param item - The queue item to schedule.
+ * @param minutes - Minutes until deletion, or null to mark as "never delete".
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 export function scheduleItem(item: QueueItem, minutes: number | null, win: BrowserWindow): void {
   // Cancel any prior job for this item
@@ -365,6 +379,7 @@ export function scheduleItem(item: QueueItem, minutes: number | null, win: Brows
 
 /**
  * Cancel a scheduled deletion. Item remains in queue as pending.
+ * @param itemId - The queue item ID whose scheduled deletion to cancel.
  */
 export function cancelItem(itemId: string): void {
   const job = jobs.get(itemId);
@@ -378,6 +393,8 @@ export function cancelItem(itemId: string): void {
 
 /**
  * Manually snooze an item by SNOOZE_MINUTES.
+ * @param itemId - The queue item ID to snooze.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 export function snoozeItem(itemId: string, win: BrowserWindow): void {
   const item = getQueueItem(itemId);
@@ -401,6 +418,7 @@ export function snoozeItem(itemId: string, win: BrowserWindow): void {
 /**
  * On app startup: re-register future jobs and immediately process overdue ones.
  * Overdue items are staggered 500ms apart to avoid hammering the system.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 export function reconcileOnStartup(win: BrowserWindow): void {
   const queue = getQueue();
@@ -446,6 +464,7 @@ export function cancelAllJobs(): void {
 
 /**
  * Exported for testing only.
+ * @returns The internal map of item IDs to their scheduled node-schedule jobs.
  */
 export function _getJobs(): Map<string, schedule.Job> {
   return jobs;
@@ -453,6 +472,7 @@ export function _getJobs(): Map<string, schedule.Job> {
 
 /**
  * Exported for testing only.
+ * @returns The internal map of item IDs to their pending confirmation state.
  */
 export function _getPendingConfirmations(): Map<string, PendingConfirmation> {
   return pendingConfirmations;

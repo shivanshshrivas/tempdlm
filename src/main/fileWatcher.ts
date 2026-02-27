@@ -33,6 +33,12 @@ const recentlyUnlinkedByInode = new Map<
 // Avoids circular import between fileWatcher <-> deletionEngine.
 let _cancelJobFn: ((itemId: string) => void) | null = null;
 
+/**
+ * Registers the callback that cancels a deletion job when a file is unlinked.
+ * Called once by the main process to wire fileWatcher ↔ deletionEngine
+ * without creating a circular import between the two modules.
+ * @param fn - Callback that receives the queue item ID whose job to cancel.
+ */
 export function setUnlinkCancelFn(fn: (itemId: string) => void): void {
   _cancelJobFn = fn;
 }
@@ -41,7 +47,10 @@ export function setUnlinkCancelFn(fn: (itemId: string) => void): void {
 
 /**
  * Returns the matching whitelist rule for a given file, or null if none match.
- * Phase 1: extension-based rules only.
+ * Phase 1: extension-based and exact-filename rules only.
+ * @param fileName - The base file name to match against (e.g. "report.pdf").
+ * @param rules - The whitelist rules to evaluate, in priority order.
+ * @returns The first matching enabled WhitelistRule, or null if none match.
  */
 export function matchWhitelistRule(fileName: string, rules: WhitelistRule[]): WhitelistRule | null {
   const ext = winPath.extname(fileName).toLowerCase();
@@ -64,6 +73,8 @@ export function matchWhitelistRule(fileName: string, rules: WhitelistRule[]): Wh
 
 /**
  * Builds a QueueItem from a file path. Returns null if stat fails (file gone).
+ * @param filePath - Absolute path to the newly detected file.
+ * @returns A populated QueueItem ready for insertion, or null if the file vanished.
  */
 export function buildQueueItem(filePath: string): QueueItem | null {
   let stat: fs.Stats;
@@ -97,6 +108,8 @@ export function buildQueueItem(filePath: string): QueueItem | null {
  * Called after debounce for each newly detected file.
  * If the file's inode matches a recently unlinked item, it's a rename:
  * patch the existing item in-place (preserving timer) instead of creating a new entry.
+ * @param filePath - Absolute path to the detected file.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 function handleNewFile(filePath: string, win: BrowserWindow): void {
   // Skip if this exact path is already tracked as an active item
@@ -197,6 +210,8 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
  * Called when chokidar detects a file removal (manual delete or rename-away).
  * Records the inode in a short-lived map so handleNewFile can detect renames.
  * If no matching 'add' arrives within RENAME_WINDOW_MS, treats as a true delete.
+ * @param filePath - Absolute path to the removed file.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 function handleFileUnlinked(filePath: string, win: BrowserWindow): void {
   // Cancel any pending debounce for this path (rapid create-then-delete)
@@ -230,8 +245,10 @@ function handleFileUnlinked(filePath: string, win: BrowserWindow): void {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Start watching the downloads folder. Safe to call multiple times - stops
+ * Start watching the downloads folder. Safe to call multiple times — stops
  * the previous watcher first.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
+ * @param settings - Current user settings supplying the folder path to watch.
  */
 export function startWatcher(win: BrowserWindow, settings: UserSettings): void {
   stopWatcher();
@@ -287,7 +304,8 @@ export function stopWatcher(): void {
 }
 
 /**
- * Exported for testing only - lets tests inspect debounce state.
+ * Exported for testing only — lets tests inspect active debounce timers.
+ * @returns The internal map of file paths to their pending debounce timer handles.
  */
 export function _getDebounceTimers(): Map<string, ReturnType<typeof setTimeout>> {
   return debounceTimers;
