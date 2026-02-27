@@ -31,6 +31,8 @@ jobs:
   format:
     name: Format
     runs-on: ubuntu-latest
+    # PRs are handled by the auto-format workflow; only gate direct pushes to main
+    if: github.event_name == 'push'
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
     steps:
