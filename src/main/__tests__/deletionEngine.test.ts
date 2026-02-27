@@ -182,7 +182,7 @@ describe("deletionEngine", () => {
       );
     });
 
-    it("sets status to pending and no job when minutes is null (never delete)", () => {
+    it("sets status to never and no job when minutes is null (never delete)", () => {
       const item = makeItem({ id: "b" });
       mockQueue.set("b", item);
       const win = makeFakeWindow();
@@ -191,7 +191,7 @@ describe("deletionEngine", () => {
 
       expect(schedule.scheduleJob).not.toHaveBeenCalled();
       expect(patchQueueItem).toHaveBeenCalledWith("b", {
-        status: "pending",
+        status: "never",
         scheduledFor: null,
       });
     });
@@ -290,11 +290,21 @@ describe("deletionEngine", () => {
     });
 
     it("skips items with null scheduledFor (never delete)", () => {
-      mockQueue.set("i", makeItem({ id: "i", status: "pending", scheduledFor: null }));
+      mockQueue.set("i", makeItem({ id: "i", status: "never", scheduledFor: null }));
       const win = makeFakeWindow();
 
       reconcileOnStartup(win);
 
+      expect(schedule.scheduleJob).not.toHaveBeenCalled();
+    });
+
+    it("migrates legacy pending+null items to never status on startup", () => {
+      mockQueue.set("legacy", makeItem({ id: "legacy", status: "pending", scheduledFor: null }));
+      const win = makeFakeWindow();
+
+      reconcileOnStartup(win);
+
+      expect(patchQueueItem).toHaveBeenCalledWith("legacy", { status: "never" });
       expect(schedule.scheduleJob).not.toHaveBeenCalled();
     });
 

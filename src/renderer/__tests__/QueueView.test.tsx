@@ -212,6 +212,28 @@ describe("QueueView", () => {
       expect(screen.getByLabelText("Remove broken.zip from queue")).toBeInTheDocument();
     });
 
+    it("shows Remove button for never items", () => {
+      const item = makeItem({ fileName: "keep.zip", status: "never" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Remove keep.zip from queue")).toBeInTheDocument();
+    });
+
+    it("shows Remove button for whitelisted items", () => {
+      const item = makeItem({ fileName: "rule.zip", status: "whitelisted" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Remove rule.zip from queue")).toBeInTheDocument();
+    });
+
+    it("calls removeItem when Remove is clicked on a never item", async () => {
+      const item = makeItem({ fileName: "keep.zip", status: "never" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      await userEvent.click(screen.getByLabelText("Remove keep.zip from queue"));
+      expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: item.id });
+    });
+
     it("calls removeItem when Remove is clicked", async () => {
       const item = makeItem({ fileName: "gone.zip", status: "deleted" });
       useQueueStore.setState({ items: [item] });
@@ -221,35 +243,73 @@ describe("QueueView", () => {
     });
   });
 
+  describe("never status", () => {
+    it("renders Never badge for never items", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "never" })] });
+      render(<QueueView />);
+      // Both the status badge and the countdown cell render "Never" — find the badge
+      const badge = screen
+        .getAllByText("Never")
+        .find((el) => el.className.includes("bg-purple-900"));
+      expect(badge).toBeInTheDocument();
+    });
+
+    it("Never badge has purple styling", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "never" })] });
+      render(<QueueView />);
+      const badge = screen
+        .getAllByText("Never")
+        .find((el) => el.className.includes("bg-purple-900"));
+      expect(badge?.className).toContain("bg-purple-900");
+      expect(badge?.className).toContain("text-purple-300");
+    });
+  });
+
   describe("Clear old button", () => {
     it("shows Clear old button when deleted items exist", () => {
       useQueueStore.setState({ items: [makeItem({ status: "deleted" })] });
       render(<QueueView />);
-      expect(screen.getByLabelText("Clear deleted and failed entries")).toBeInTheDocument();
+      expect(screen.getByLabelText("Clear inactive entries")).toBeInTheDocument();
     });
 
     it("shows Clear old button when failed items exist", () => {
       useQueueStore.setState({ items: [makeItem({ status: "failed" })] });
       render(<QueueView />);
-      expect(screen.getByLabelText("Clear deleted and failed entries")).toBeInTheDocument();
+      expect(screen.getByLabelText("Clear inactive entries")).toBeInTheDocument();
     });
 
-    it("hides Clear old button when no old items exist", () => {
+    it("shows Clear old button when never items exist", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "never" })] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Clear inactive entries")).toBeInTheDocument();
+    });
+
+    it("shows Clear old button when whitelisted items exist", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "whitelisted" })] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Clear inactive entries")).toBeInTheDocument();
+    });
+
+    it("hides Clear old button when no inactive items exist", () => {
       useQueueStore.setState({ items: [makeItem({ status: "scheduled" })] });
       render(<QueueView />);
-      expect(screen.queryByLabelText("Clear deleted and failed entries")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Clear inactive entries")).not.toBeInTheDocument();
     });
 
-    it("calls removeItem for each old item when Clear old is clicked", async () => {
+    it("calls removeItem for each inactive item when Clear old is clicked", async () => {
       const deleted = makeItem({ status: "deleted" });
       const failed = makeItem({ status: "failed" });
+      const never = makeItem({ status: "never" });
+      const whitelisted = makeItem({ status: "whitelisted" });
       const active = makeItem({ status: "scheduled" });
-      useQueueStore.setState({ items: [deleted, failed, active] });
+      useQueueStore.setState({ items: [deleted, failed, never, whitelisted, active] });
       render(<QueueView />);
-      await userEvent.click(screen.getByLabelText("Clear deleted and failed entries"));
-      expect(mockRemoveItem).toHaveBeenCalledTimes(2);
+      await userEvent.click(screen.getByLabelText("Clear inactive entries"));
+      expect(mockRemoveItem).toHaveBeenCalledTimes(4);
       expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: deleted.id });
       expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: failed.id });
+      expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: never.id });
+      expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: whitelisted.id });
       // Active item must not be removed
       expect(mockRemoveItem).not.toHaveBeenCalledWith({ itemId: active.id });
     });

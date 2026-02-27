@@ -14,6 +14,7 @@ const STATUS_STYLES: Record<QueueItemStatus, string> = {
   deleted: "bg-neutral-800 text-neutral-500",
   failed: "bg-red-900 text-red-300",
   whitelisted: "bg-green-900 text-green-300",
+  never: "bg-purple-900 text-purple-300",
 };
 
 const STATUS_LABELS: Record<QueueItemStatus, string> = {
@@ -25,6 +26,7 @@ const STATUS_LABELS: Record<QueueItemStatus, string> = {
   deleted: "Deleted",
   failed: "Failed",
   whitelisted: "Whitelisted",
+  never: "Never",
 };
 
 function StatusBadge({ status }: { status: QueueItemStatus }) {
@@ -92,7 +94,7 @@ function RowActions({ item }: { item: QueueItem }) {
     removeItem(item.id);
   }
 
-  if (item.status === "deleting" || item.status === "whitelisted" || item.status === "confirming") {
+  if (item.status === "deleting" || item.status === "confirming") {
     return null;
   }
 
@@ -121,7 +123,10 @@ function RowActions({ item }: { item: QueueItem }) {
           {item.error ?? "Unknown error"}
         </span>
       )}
-      {(item.status === "deleted" || item.status === "failed") && (
+      {(item.status === "deleted" ||
+        item.status === "failed" ||
+        item.status === "never" ||
+        item.status === "whitelisted") && (
         <button
           onClick={handleRemove}
           className="text-xs text-red-400 hover:text-red-300 transition-colors"
@@ -162,14 +167,26 @@ export default function QueueView() {
   const { items, isLoading, searchQuery, setSearchQuery, removeItem } = useQueueStore();
 
   function handleClearOld() {
-    const old = items.filter((i) => i.status === "deleted" || i.status === "failed");
+    const old = items.filter(
+      (i) =>
+        i.status === "deleted" ||
+        i.status === "failed" ||
+        i.status === "never" ||
+        i.status === "whitelisted",
+    );
     old.forEach((i) => {
       window.tempdlm.removeItem({ itemId: i.id });
       removeItem(i.id);
     });
   }
 
-  const hasOld = items.some((i) => i.status === "deleted" || i.status === "failed");
+  const hasOld = items.some(
+    (i) =>
+      i.status === "deleted" ||
+      i.status === "failed" ||
+      i.status === "never" ||
+      i.status === "whitelisted",
+  );
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
   const [sortKey, setSortKey] = useState<SortKey>("detectedAt");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -270,7 +287,7 @@ export default function QueueView() {
           <button
             onClick={handleClearOld}
             className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 border border-neutral-700 text-red-400 hover:border-red-600 hover:text-red-300 transition-colors whitespace-nowrap"
-            aria-label="Clear deleted and failed entries"
+            aria-label="Clear inactive entries"
           >
             Clear old
           </button>
