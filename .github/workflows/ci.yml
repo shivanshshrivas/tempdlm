@@ -12,10 +12,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Auto-formatting ───────────────────────────────────────────────────────────
+
+  auto-format:
+    name: Auto Format
+    runs-on: ubuntu-latest
+    # Only auto-format on PRs. Prettier is idempotent so no loop guard is needed —
+    # if the bot already fixed formatting, this job will find no changes and skip
+    # the commit, producing changes_detected=false and letting CI proceed normally.
+    if: github.event_name == 'pull_request'
+    outputs:
+      changes_detected: ${{ steps.auto-commit.outputs.changes_detected }}
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          # PAT so the commit triggers a new workflow run on the PR branch
+          token: ${{ secrets.AUTO_FORMAT_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-fund
+      - name: Run Prettier
+        run: npm run format
+      - name: Commit formatting fixes
+        id: auto-commit
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format with Prettier"
+          commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          commit_user_name: github-actions[bot]
+          commit_user_email: github-actions[bot]@users.noreply.github.com
+
   # ── Standard quality gates ───────────────────────────────────────────────────
+  #
+  # All jobs depend on auto-format and will skip when it committed fixes
+  # (changes_detected=true). The PAT commit triggers a fresh workflow run where
+  # auto-format finds nothing to fix and these jobs proceed normally.
+  # On direct pushes to main auto-format is skipped (result=skipped) and all
+  # jobs run immediately.
 
   lint:
     name: Lint
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -30,6 +73,8 @@ jobs:
 
   format:
     name: Format
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -39,11 +84,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install --no-fund
+      - run: npm ci --no-fund
       - run: npm run format:check
 
   typecheck:
     name: Type Check
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -61,6 +108,8 @@ jobs:
 
   test:
     name: Tests
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -75,6 +124,8 @@ jobs:
 
   security-audit:
     name: Security Audit
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -92,6 +143,8 @@ jobs:
 
   maintainability:
     name: Maintainability
+    needs: [auto-format]
+    if: ${{ !cancelled() && needs.auto-format.result != 'failure' && needs.auto-format.outputs.changes_detected != 'true' }}
     runs-on: ubuntu-latest
     env:
       ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -126,6 +179,9 @@ jobs:
           exit $FAILED
 
   # ── Sensitive file and secret scanning ───────────────────────────────────────
+  #
+  # These jobs inspect git history and the committed file list — they do not
+  # validate source code quality, so they run independently of auto-format.
 
   secret-scan:
     name: Secret Scan
