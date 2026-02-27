@@ -309,7 +309,10 @@ export default function SettingsView() {
               {THEME_OPTIONS.map(({ label, value }) => (
                 <button
                   key={value}
-                  onClick={() => patch({ theme: value })}
+                  onClick={() => {
+                    patch({ theme: value });
+                    applyTheme(value);
+                  }}
                   aria-pressed={settings.theme === value}
                   className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
                     settings.theme === value
