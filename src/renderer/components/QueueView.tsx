@@ -124,7 +124,7 @@ function RowActions({ item }: { item: QueueItem }) {
       {(item.status === "deleted" || item.status === "failed") && (
         <button
           onClick={handleRemove}
-          className="text-xs text-neutral-500 hover:text-red-400 transition-colors"
+          className="text-xs text-red-400 hover:text-red-300 transition-colors"
           aria-label={`Remove ${item.fileName} from queue`}
         >
           Remove
@@ -269,7 +269,7 @@ export default function QueueView() {
         {hasOld && (
           <button
             onClick={handleClearOld}
-            className="px-3 py-1.5 text-xs text-neutral-500 hover:text-red-400 transition-colors whitespace-nowrap"
+            className="px-3 py-1.5 text-xs rounded-lg bg-neutral-800 border border-neutral-700 text-red-400 hover:border-red-600 hover:text-red-300 transition-colors whitespace-nowrap"
             aria-label="Clear deleted and failed entries"
           >
             Clear old
