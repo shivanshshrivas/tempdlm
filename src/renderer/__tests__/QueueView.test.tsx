@@ -10,11 +10,12 @@ import { type QueueItem } from "../../shared/types";
 
 const mockCancelItem = vi.fn().mockResolvedValue(undefined);
 const mockSnoozeItem = vi.fn().mockResolvedValue(undefined);
+const mockRemoveItem = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, "tempdlm", {
-    value: { cancelItem: mockCancelItem, snoozeItem: mockSnoozeItem },
+    value: { cancelItem: mockCancelItem, snoozeItem: mockSnoozeItem, removeItem: mockRemoveItem },
     writable: true,
     configurable: true,
   });
@@ -195,6 +196,62 @@ describe("QueueView", () => {
       useQueueStore.setState({ items: [item] });
       render(<QueueView />);
       expect(screen.queryByLabelText(`Cancel timer for gone.zip`)).not.toBeInTheDocument();
+    });
+
+    it("shows Remove button for deleted items", () => {
+      const item = makeItem({ fileName: "gone.zip", status: "deleted" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Remove gone.zip from queue")).toBeInTheDocument();
+    });
+
+    it("shows Remove button for failed items", () => {
+      const item = makeItem({ fileName: "broken.zip", status: "failed", error: "disk full" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Remove broken.zip from queue")).toBeInTheDocument();
+    });
+
+    it("calls removeItem when Remove is clicked", async () => {
+      const item = makeItem({ fileName: "gone.zip", status: "deleted" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      await userEvent.click(screen.getByLabelText("Remove gone.zip from queue"));
+      expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: item.id });
+    });
+  });
+
+  describe("Clear old button", () => {
+    it("shows Clear old button when deleted items exist", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "deleted" })] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Clear deleted and failed entries")).toBeInTheDocument();
+    });
+
+    it("shows Clear old button when failed items exist", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "failed" })] });
+      render(<QueueView />);
+      expect(screen.getByLabelText("Clear deleted and failed entries")).toBeInTheDocument();
+    });
+
+    it("hides Clear old button when no old items exist", () => {
+      useQueueStore.setState({ items: [makeItem({ status: "scheduled" })] });
+      render(<QueueView />);
+      expect(screen.queryByLabelText("Clear deleted and failed entries")).not.toBeInTheDocument();
+    });
+
+    it("calls removeItem for each old item when Clear old is clicked", async () => {
+      const deleted = makeItem({ status: "deleted" });
+      const failed = makeItem({ status: "failed" });
+      const active = makeItem({ status: "scheduled" });
+      useQueueStore.setState({ items: [deleted, failed, active] });
+      render(<QueueView />);
+      await userEvent.click(screen.getByLabelText("Clear deleted and failed entries"));
+      expect(mockRemoveItem).toHaveBeenCalledTimes(2);
+      expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: deleted.id });
+      expect(mockRemoveItem).toHaveBeenCalledWith({ itemId: failed.id });
+      // Active item must not be removed
+      expect(mockRemoveItem).not.toHaveBeenCalledWith({ itemId: active.id });
     });
   });
 });
