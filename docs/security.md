@@ -3,10 +3,11 @@
 This document describes the security architecture, hardening decisions, input validation strategy, and known trade-offs for TempDLM v1.x.
 
 <details>
-<summary><strong>Change log</strong> (last updated: 2026-02-25)</summary>
+<summary><strong>Change log</strong> (last updated: 2026-02-26)</summary>
 
 | Date       | Issue                                                       | Summary                                        |
 | ---------- | ----------------------------------------------------------- | ---------------------------------------------- |
+| 2026-02-26 | [#26](https://github.com/shivanshshrivas/tempdlm/issues/26) | minimatch high vuln fixed (→ 10.2.4)           |
 | 2026-02-25 | [#15](https://github.com/shivanshshrivas/tempdlm/issues/15) | GitHub Actions CI with `npm audit` enforcement |
 | 2026-02-25 | —                                                           | Rollup path-traversal vuln fixed (→ 4.59.0)    |
 | 2026-02-25 | [#9](https://github.com/shivanshshrivas/tempdlm/issues/9)   | Auto-update support                            |
@@ -161,7 +162,7 @@ This prevents a stuck or unavailable PowerShell from blocking the deletion queue
 
 ### Settings patch (`settings:update` IPC)
 
-`validateSettingsPatch()` in `src/main/index.ts` validates every field before writing to the store:
+`validateSettingsPatch()` in `src/main/settingsValidator.ts` validates every field before writing to the store:
 
 | Field                                | Validation                                                                             |
 | ------------------------------------ | -------------------------------------------------------------------------------------- |
