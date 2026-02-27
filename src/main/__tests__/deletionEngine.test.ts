@@ -298,6 +298,16 @@ describe("deletionEngine", () => {
       expect(schedule.scheduleJob).not.toHaveBeenCalled();
     });
 
+    it("migrates legacy pending+null items to never status on startup", () => {
+      mockQueue.set("legacy", makeItem({ id: "legacy", status: "pending", scheduledFor: null }));
+      const win = makeFakeWindow();
+
+      reconcileOnStartup(win);
+
+      expect(patchQueueItem).toHaveBeenCalledWith("legacy", { status: "never" });
+      expect(schedule.scheduleJob).not.toHaveBeenCalled();
+    });
+
     it("processes overdue items via setTimeout stagger", () => {
       vi.useFakeTimers();
       const pastTime = Date.now() - 60 * 1000;

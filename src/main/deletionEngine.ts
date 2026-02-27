@@ -425,6 +425,15 @@ export function reconcileOnStartup(win: BrowserWindow): void {
   const now = Date.now();
   let overdueDelay = 0;
 
+  // One-time migration: items persisted before the "never" status was introduced
+  // have status "pending" with a null scheduledFor. Promote them so they render
+  // correctly with the purple "Never" badge and can be individually removed.
+  for (const item of queue) {
+    if (item.status === "pending" && item.scheduledFor === null) {
+      patchQueueItem(item.id, { status: "never" });
+    }
+  }
+
   for (const item of queue) {
     if (item.status === "deleted" || item.status === "failed" || item.status === "whitelisted") {
       continue;
