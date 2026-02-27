@@ -20,6 +20,12 @@ const PRESETS: { label: string; value: Preset; minutes: number }[] = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * Dialog shown when a new file is detected in the Downloads folder.
+ * Lets the user pick a deletion timer preset or enter a custom duration.
+ * @param props - Component props (see Props interface).
+ * @returns The timer-selection dialog element.
+ */
 export default function NewFileDialog({ item, onDismiss }: Props) {
   const [showCustom, setShowCustom] = useState(false);
   const [customValue, setCustomValue] = useState("");

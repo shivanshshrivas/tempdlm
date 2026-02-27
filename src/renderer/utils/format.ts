@@ -1,6 +1,8 @@
 /**
  * Format a byte count into a human-readable string.
  * e.g. 1024 → "1.0 KB", 1_500_000 → "1.4 MB"
+ * @param bytes - Non-negative byte count to format.
+ * @returns Human-readable size string with unit suffix.
  */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -13,6 +15,8 @@ export function formatBytes(bytes: number): string {
 /**
  * Format a future Unix timestamp (ms) as a countdown string.
  * e.g. "2h 14m", "45s", "Overdue"
+ * @param scheduledFor - Unix timestamp in milliseconds for the scheduled deletion.
+ * @returns Human-readable countdown string, or "Overdue" if the time has passed.
  */
 export function formatCountdown(scheduledFor: number): string {
   const diff = scheduledFor - Date.now();
@@ -34,6 +38,9 @@ export function formatCountdown(scheduledFor: number): string {
  * Truncate a string in the middle, preserving both the start and end.
  * Useful for filenames where the extension and suffix matter.
  * e.g. "very_long_filename_info (1).pdf" → "very_long_file…nfo (1).pdf"
+ * @param text - The string to truncate.
+ * @param maxLength - Maximum character length of the result (default 48).
+ * @returns The original string if short enough, otherwise a middle-truncated version.
  */
 export function middleTruncate(text: string, maxLength = 48): string {
   if (text.length <= maxLength) return text;
@@ -43,7 +50,9 @@ export function middleTruncate(text: string, maxLength = 48): string {
 }
 
 /**
- * Convert a timer preset label to minutes.
+ * Convert a timer preset label to its equivalent number of minutes.
+ * @param preset - One of the supported timer preset labels.
+ * @returns The number of minutes corresponding to the preset.
  */
 export function presetToMinutes(preset: "5m" | "30m" | "2h" | "1d"): number {
   switch (preset) {

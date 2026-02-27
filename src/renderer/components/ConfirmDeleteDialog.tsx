@@ -11,6 +11,13 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * Dialog shown when the window-title heuristic detects that a file may still
+ * be open. Presents a countdown and lets the user confirm deletion or keep the
+ * file. Automatically resolves to 'delete' when the countdown expires.
+ * @param props - Component props (see Props interface).
+ * @returns The confirmation dialog element.
+ */
 export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
   const { item, processNames, timeoutMs, confirmationStartedAt } = payload;
   const deadline = confirmationStartedAt + timeoutMs;
