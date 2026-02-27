@@ -105,6 +105,33 @@ export function buildQueueItem(filePath: string): QueueItem | null {
 // ─── Core handlers ────────────────────────────────────────────────────────────
 
 /**
+ * Called when chokidar reports a content change on a tracked file.
+ * Re-stats the file and updates the queue item's fileSize if it has changed,
+ * then notifies the renderer so the displayed size stays accurate for files
+ * that are still growing after initial detection (e.g. large active downloads).
+ * @param filePath - Absolute path to the changed file.
+ * @param win - The main BrowserWindow for sending IPC events to the renderer.
+ */
+function handleFileChanged(filePath: string, win: BrowserWindow): void {
+  const item = getQueue().find(
+    (i) => i.filePath === filePath && i.status !== "deleted" && i.status !== "failed",
+  );
+  if (!item) return;
+
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(filePath);
+  } catch {
+    return; // file may have been deleted between the change event and our stat
+  }
+
+  if (stat.size === item.fileSize) return; // no change — skip unnecessary IPC
+
+  patchQueueItem(item.id, { fileSize: stat.size });
+  win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+}
+
+/**
  * Called after debounce for each newly detected file.
  * If the file's inode matches a recently unlinked item, it's a rename:
  * patch the existing item in-place (preserving timer) instead of creating a new entry.
@@ -278,6 +305,10 @@ export function startWatcher(win: BrowserWindow, settings: UserSettings): void {
 
   watcher.on("unlink", (filePath: string) => {
     handleFileUnlinked(filePath, win);
+  });
+
+  watcher.on("change", (filePath: string) => {
+    handleFileChanged(filePath, win);
   });
 
   watcher.on("error", (error: unknown) => {
