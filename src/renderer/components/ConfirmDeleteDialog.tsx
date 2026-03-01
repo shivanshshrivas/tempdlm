@@ -27,17 +27,18 @@ export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
   const handleDelete = useCallback(() => {
     if (responded.current) return;
     responded.current = true;
-    window.tempdlm.confirmDeleteResponse({
-      itemId: item.id,
-      decision: "delete",
-    });
+    window.tempdlm
+      .confirmDeleteResponse({ itemId: item.id, decision: "delete" })
+      .catch((err) => console.error("confirmDeleteResponse failed:", err));
     onDismiss();
   }, [item.id, onDismiss]);
 
   const handleKeep = useCallback(() => {
     if (responded.current) return;
     responded.current = true;
-    window.tempdlm.confirmDeleteResponse({ itemId: item.id, decision: "keep" });
+    window.tempdlm
+      .confirmDeleteResponse({ itemId: item.id, decision: "keep" })
+      .catch((err) => console.error("confirmDeleteResponse failed:", err));
     onDismiss();
   }, [item.id, onDismiss]);
 
@@ -49,10 +50,9 @@ export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
         setRemainingMs(0);
         if (!responded.current) {
           responded.current = true;
-          window.tempdlm.confirmDeleteResponse({
-            itemId: item.id,
-            decision: "delete",
-          });
+          window.tempdlm
+            .confirmDeleteResponse({ itemId: item.id, decision: "delete" })
+            .catch((err) => console.error("confirmDeleteResponse failed:", err));
           onDismiss();
         }
       } else {
