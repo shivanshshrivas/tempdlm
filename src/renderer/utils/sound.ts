@@ -1,10 +1,28 @@
+// ─── Internal State ───────────────────────────────────────────────────────────
+
+/** Shared AudioContext — lazily created, reused across all chime calls. */
+let _ctx: AudioContext | null = null;
+
+/**
+ * Returns the shared AudioContext, creating it on first use.
+ * Re-creates the context only if it was explicitly closed.
+ */
+function getAudioContext(): AudioContext {
+  if (!_ctx || _ctx.state === "closed") {
+    _ctx = new AudioContext();
+  }
+  return _ctx;
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 /**
  * Plays a short rising two-tone chime (new file detected).
  * Safe to call even if audio is unavailable — errors are silently ignored.
  */
 export function playNewFileChime(): void {
   try {
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
 
     const playTone = (freq: number, startTime: number) => {
       const osc = ctx.createOscillator();
@@ -32,7 +50,7 @@ export function playNewFileChime(): void {
  */
 export function playConfirmChime(): void {
   try {
-    const ctx = new AudioContext();
+    const ctx = getAudioContext();
 
     const playTone = (freq: number, startTime: number) => {
       const osc = ctx.createOscillator();
