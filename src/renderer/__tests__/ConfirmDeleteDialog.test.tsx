@@ -173,4 +173,36 @@ describe("ConfirmDeleteDialog", () => {
       expect(mockConfirmDeleteResponse).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe("IPC error handling", () => {
+    it("still dismisses when confirmDeleteResponse rejects on delete", async () => {
+      mockConfirmDeleteResponse.mockRejectedValueOnce(new Error("fail"));
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const onDismiss = vi.fn();
+      render(<ConfirmDeleteDialog payload={makePayload()} onDismiss={onDismiss} />);
+
+      await userEvent.click(screen.getByText("Delete anyway"));
+
+      expect(onDismiss).toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(consoleSpy).toHaveBeenCalledWith("confirmDeleteResponse failed:", expect.any(Error)),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it("still dismisses when confirmDeleteResponse rejects on keep", async () => {
+      mockConfirmDeleteResponse.mockRejectedValueOnce(new Error("fail"));
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const onDismiss = vi.fn();
+      render(<ConfirmDeleteDialog payload={makePayload()} onDismiss={onDismiss} />);
+
+      await userEvent.click(screen.getByText("Keep file"));
+
+      expect(onDismiss).toHaveBeenCalled();
+      await vi.waitFor(() =>
+        expect(consoleSpy).toHaveBeenCalledWith("confirmDeleteResponse failed:", expect.any(Error)),
+      );
+      consoleSpy.mockRestore();
+    });
+  });
 });
