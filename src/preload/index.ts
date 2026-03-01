@@ -31,14 +31,20 @@ const api = {
 
   // ── Commands ───────────────────────────────────────────────────────────────
 
-  setTimer: (payload: SetTimerPayload): Promise<void> =>
-    ipcRenderer.invoke(IPC_INVOKE.FILE_SET_TIMER, payload),
+  setTimer: async (payload: SetTimerPayload): Promise<void> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_SET_TIMER, payload);
+    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+  },
 
-  cancelItem: (payload: CancelPayload): Promise<void> =>
-    ipcRenderer.invoke(IPC_INVOKE.FILE_CANCEL, payload),
+  cancelItem: async (payload: CancelPayload): Promise<void> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_CANCEL, payload);
+    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+  },
 
-  snoozeItem: (payload: SnoozePayload): Promise<void> =>
-    ipcRenderer.invoke(IPC_INVOKE.FILE_SNOOZE, payload),
+  snoozeItem: async (payload: SnoozePayload): Promise<void> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_SNOOZE, payload);
+    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+  },
 
   updateSettings: async (
     settings: Partial<UserSettings>,
@@ -47,11 +53,15 @@ const api = {
     return res as { success: boolean; error?: string };
   },
 
-  removeItem: (payload: { itemId: string }): Promise<void> =>
-    ipcRenderer.invoke(IPC_INVOKE.FILE_REMOVE, payload),
+  removeItem: async (payload: { itemId: string }): Promise<void> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_REMOVE, payload);
+    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+  },
 
-  confirmDeleteResponse: (payload: ConfirmResponsePayload): Promise<void> =>
-    ipcRenderer.invoke(IPC_INVOKE.FILE_CONFIRM_RESPONSE, payload),
+  confirmDeleteResponse: async (payload: ConfirmResponsePayload): Promise<void> => {
+    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_CONFIRM_RESPONSE, payload);
+    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+  },
 
   pickFolder: async (): Promise<string | null> => {
     const res = await ipcRenderer.invoke("dialog:pick-folder");

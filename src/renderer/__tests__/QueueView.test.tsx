@@ -314,4 +314,48 @@ describe("QueueView", () => {
       expect(mockRemoveItem).not.toHaveBeenCalledWith({ itemId: active.id });
     });
   });
+
+  describe("IPC error handling", () => {
+    it("reverts optimistic cancel when cancelItem rejects", async () => {
+      mockCancelItem.mockRejectedValueOnce(new Error("Operation already in progress"));
+      const item = makeItem({
+        status: "scheduled",
+        scheduledFor: Date.now() + 60000,
+      });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      await userEvent.click(screen.getByLabelText(`Cancel timer for ${item.fileName}`));
+      // After rejection, the item should revert to scheduled status
+      await waitFor(() => expect(screen.getByText("Scheduled")).toBeInTheDocument());
+    });
+
+    it("logs error when snoozeItem rejects", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockSnoozeItem.mockRejectedValueOnce(new Error("Window not available"));
+      const item = makeItem({
+        status: "scheduled",
+        scheduledFor: Date.now() + 60000,
+      });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      await userEvent.click(screen.getByLabelText(`Snooze ${item.fileName}`));
+      await waitFor(() =>
+        expect(consoleSpy).toHaveBeenCalledWith("snoozeItem failed:", expect.any(Error)),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it("logs error when removeItem rejects", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockRemoveItem.mockRejectedValueOnce(new Error("fail"));
+      const item = makeItem({ status: "deleted" });
+      useQueueStore.setState({ items: [item] });
+      render(<QueueView />);
+      await userEvent.click(screen.getByLabelText(`Remove ${item.fileName} from queue`));
+      await waitFor(() =>
+        expect(consoleSpy).toHaveBeenCalledWith("removeItem failed:", expect.any(Error)),
+      );
+      consoleSpy.mockRestore();
+    });
+  });
 });

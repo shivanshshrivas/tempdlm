@@ -31,22 +31,31 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
   const [customValue, setCustomValue] = useState("");
   const [customUnit, setCustomUnit] = useState<"minutes" | "hours" | "days">("minutes");
   const [customError, setCustomError] = useState("");
+  const [ipcError, setIpcError] = useState("");
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  function handlePreset(minutes: number) {
-    window.tempdlm.setTimer({ itemId: item.id, minutes });
-    onDismiss();
+  async function handlePreset(minutes: number) {
+    try {
+      await window.tempdlm.setTimer({ itemId: item.id, minutes });
+      onDismiss();
+    } catch (err) {
+      setIpcError(err instanceof Error ? err.message : "Failed to set timer");
+    }
   }
 
-  function handleNever() {
-    window.tempdlm.setTimer({ itemId: item.id, minutes: null });
-    onDismiss();
+  async function handleNever() {
+    try {
+      await window.tempdlm.setTimer({ itemId: item.id, minutes: null });
+      onDismiss();
+    } catch (err) {
+      setIpcError(err instanceof Error ? err.message : "Failed to set timer");
+    }
   }
 
   const MAX_MINUTES = 40_320; // 28 days
 
-  function handleCustomSubmit() {
+  async function handleCustomSubmit() {
     const num = parseFloat(customValue);
     if (!customValue || isNaN(num) || num <= 0) {
       setCustomError("Enter a positive number");
@@ -71,8 +80,12 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
       return;
     }
 
-    window.tempdlm.setTimer({ itemId: item.id, minutes });
-    onDismiss();
+    try {
+      await window.tempdlm.setTimer({ itemId: item.id, minutes });
+      onDismiss();
+    } catch (err) {
+      setIpcError(err instanceof Error ? err.message : "Failed to set timer");
+    }
   }
 
   function handleCustomValueChange(val: string) {
@@ -115,6 +128,13 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
           ×
         </button>
       </div>
+
+      {/* IPC error */}
+      {ipcError && (
+        <p className="text-xs text-red-500 dark:text-red-400 mb-2" role="alert">
+          {ipcError}
+        </p>
+      )}
 
       {/* Prompt */}
       <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Delete after…</p>

@@ -100,7 +100,7 @@ The renderer is treated as an **untrusted boundary**: all data it sends via IPC 
 | `update:install`        | None - calls `quitAndInstall()`            | -                         |
 | `shell:open-external`   | URL allowlisted to repo origin (see §7)    | -                         |
 
-All handlers return `{ success: boolean; error?: string; data?: T }`. The renderer receives a structured response and can surface errors to the user.
+All handlers return `{ success: boolean; error?: string; data?: T }`. The preload bridge checks `success` on every command invocation and throws an `Error` if the main process reports failure, ensuring the renderer can catch and surface errors to the user.
 
 ## 4. File System Safety
 

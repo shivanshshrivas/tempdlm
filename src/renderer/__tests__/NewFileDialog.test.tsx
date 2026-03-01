@@ -227,4 +227,35 @@ describe("NewFileDialog", () => {
       expect(onDismiss).toHaveBeenCalled();
     });
   });
+
+  describe("IPC error handling", () => {
+    it("shows error and does not dismiss when setTimer rejects on preset click", async () => {
+      mockSetTimer.mockRejectedValueOnce(new Error("Operation already in progress"));
+      const onDismiss = vi.fn();
+      render(<NewFileDialog item={makeItem()} onDismiss={onDismiss} />);
+      await userEvent.click(screen.getByText("5 min"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Operation already in progress");
+      expect(onDismiss).not.toHaveBeenCalled();
+    });
+
+    it("shows error and does not dismiss when Never rejects", async () => {
+      mockSetTimer.mockRejectedValueOnce(new Error("Item not found"));
+      const onDismiss = vi.fn();
+      render(<NewFileDialog item={makeItem()} onDismiss={onDismiss} />);
+      await userEvent.click(screen.getByText("Never"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Item not found");
+      expect(onDismiss).not.toHaveBeenCalled();
+    });
+
+    it("shows error and does not dismiss when custom submit rejects", async () => {
+      mockSetTimer.mockRejectedValueOnce(new Error("Window not available"));
+      const onDismiss = vi.fn();
+      render(<NewFileDialog item={makeItem()} onDismiss={onDismiss} />);
+      await userEvent.click(screen.getByText("Custom…"));
+      await userEvent.type(screen.getByLabelText("Custom duration amount"), "10");
+      await userEvent.click(screen.getByText("Set timer"));
+      expect(await screen.findByRole("alert")).toHaveTextContent("Window not available");
+      expect(onDismiss).not.toHaveBeenCalled();
+    });
+  });
 });

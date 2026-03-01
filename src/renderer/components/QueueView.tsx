@@ -81,18 +81,32 @@ const SORT_OPTIONS: { label: string; value: SortKey }[] = [
 function RowActions({ item }: { item: QueueItem }) {
   const { updateItem, removeItem } = useQueueStore();
 
-  function handleCancel() {
-    window.tempdlm.cancelItem({ itemId: item.id });
+  async function handleCancel() {
+    const prev = { status: item.status, scheduledFor: item.scheduledFor };
     updateItem(item.id, { status: "pending", scheduledFor: null });
+    try {
+      await window.tempdlm.cancelItem({ itemId: item.id });
+    } catch (err) {
+      console.error("cancelItem failed:", err);
+      updateItem(item.id, prev);
+    }
   }
 
-  function handleSnooze() {
-    window.tempdlm.snoozeItem({ itemId: item.id });
+  async function handleSnooze() {
+    try {
+      await window.tempdlm.snoozeItem({ itemId: item.id });
+    } catch (err) {
+      console.error("snoozeItem failed:", err);
+    }
   }
 
-  function handleRemove() {
-    window.tempdlm.removeItem({ itemId: item.id });
+  async function handleRemove() {
     removeItem(item.id);
+    try {
+      await window.tempdlm.removeItem({ itemId: item.id });
+    } catch (err) {
+      console.error("removeItem failed:", err);
+    }
   }
 
   if (item.status === "deleting" || item.status === "confirming") {
@@ -179,8 +193,10 @@ export default function QueueView() {
         i.status === "whitelisted",
     );
     old.forEach((i) => {
-      window.tempdlm.removeItem({ itemId: i.id });
       removeItem(i.id);
+      window.tempdlm.removeItem({ itemId: i.id }).catch((err) => {
+        console.error("removeItem failed:", err);
+      });
     });
   }
 
