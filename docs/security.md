@@ -137,7 +137,7 @@ The file watcher (`chokidar`) watches only the validated `downloadsFolder` path 
 
 ## 5. PowerShell Invocation
 
-Both PowerShell invocations use `child_process.spawnSync` directly - **not** `child_process.exec` and **not** `shell: true`. This means the process arguments are passed as an array; there is no shell interpretation of special characters in the command string.
+Both PowerShell invocations use `child_process.execFile` (async, callback-based) — **not** `child_process.exec` and **not** `shell: true`. This means the process arguments are passed as an array; there is no shell interpretation of special characters in the command string. The async pattern avoids blocking the Electron main process during lock detection.
 
 ### Single-quote escaping
 
@@ -240,7 +240,7 @@ User data (`queue`, `settings`) is stored by `electron-store` in `%APPDATA%/temp
 | Risk                                     | Severity      | Mitigation                                                                                                                  |
 | ---------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `sandbox: false`                         | Medium        | `contextIsolation`, `nodeIntegration: false`, validated IPC (see §2)                                                        |
-| PowerShell invocation                    | Low-Medium    | `spawnSync` (no shell), single-quote escaping, fail-open timeouts                                                           |
+| PowerShell invocation                    | Low-Medium    | `execFile` (no shell, async), single-quote escaping, fail-open timeouts                                                     |
 | Window-title heuristic is name-based     | Low           | Fail-open - false positives result in a confirmation dialog, not a missed deletion                                          |
 | electron-store stores data as plain JSON | Low           | Data is user's own queue/settings; no secret material; file is in the user's profile directory with OS-level access control |
 | Unsigned builds skip signature checks    | Low           | `electron-updater` still verifies SHA-512 checksums from `latest.yml`; code signing planned for production releases         |
@@ -251,7 +251,7 @@ User data (`queue`, `settings`) is stored by `electron-store` in `%APPDATA%/temp
 
 | OWASP DA Risk                             | Status    | Notes                                                                                                 |
 | ----------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| DA1 - Injections                          | Mitigated | PowerShell uses `spawnSync` + single-quote escaping; `openExternal` URL-allowlisted                   |
+| DA1 - Injections                          | Mitigated | PowerShell uses `execFile` (no shell) + single-quote escaping; `openExternal` URL-allowlisted         |
 | DA2 - Broken Auth                         | N/A       | Single-user desktop app; no authentication surface                                                    |
 | DA3 - Sensitive Data Exposure             | Low risk  | No secrets stored; queue/settings are non-sensitive user data                                         |
 | DA4 - Improper Cryptography               | N/A       | No custom encryption; update verification delegated to `electron-updater` (SHA-512 + sigs)            |

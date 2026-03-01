@@ -82,25 +82,39 @@ vi.mock("fs", () => ({
 // ── child_process mock (PowerShell lock probe + window-title heuristic) ──────
 
 vi.mock("child_process", () => ({
-  spawnSync: vi.fn((_cmd: string, args: string[]) => {
-    const script = args?.[args.length - 1] ?? "";
+  execFile: vi.fn(
+    (
+      _cmd: string,
+      args: string[],
+      _opts: unknown,
+      callback: (err: Error | null, stdout: string, stderr: string) => void,
+    ) => {
+      const script = args?.[args.length - 1] ?? "";
 
-    // Restart Manager call (contains 'RmCheck')
-    if (script.includes("RmCheck")) {
-      return { status: fileLocked ? 1 : 0, error: undefined };
-    }
+      // Restart Manager call (contains 'RmCheck')
+      if (script.includes("RmCheck")) {
+        if (fileLocked) {
+          // Simulate non-zero exit code (exit 1 = locked)
+          const err = Object.assign(new Error("process exited with code 1"), {
+            code: 1,
+            killed: false,
+          });
+          callback(err, "", "");
+        } else {
+          callback(null, "", "");
+        }
+        return;
+      }
 
-    // Get-Process call (window-title heuristic)
-    if (script.includes("Get-Process")) {
-      return {
-        status: 0,
-        error: undefined,
-        stdout: Buffer.from(windowTitleProcesses.join("\r\n")),
-      };
-    }
+      // Get-Process call (window-title heuristic)
+      if (script.includes("Get-Process")) {
+        callback(null, windowTitleProcesses.join("\r\n"), "");
+        return;
+      }
 
-    return { status: 0, error: undefined };
-  }),
+      callback(null, "", "");
+    },
+  ),
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
@@ -136,6 +150,12 @@ function makeItem(overrides: Partial<QueueItem> = {}): QueueItem {
     clusterId: null,
     ...overrides,
   };
+}
+
+// Flush pending microtasks so async chains (execFile → Promise → await) settle.
+// Needed for tests that inspect intermediate state before attemptDeletion completes.
+async function flushAsync(): Promise<void> {
+  for (let i = 0; i < 5; i++) await Promise.resolve();
 }
 
 function makeFakeWindow(visible = false) {
@@ -437,6 +457,7 @@ describe("deletionEngine", () => {
 
       // Don't await — let the confirmation hang
       const deletionPromise = job.callback();
+      await flushAsync(); // let attemptDeletion reach waitForConfirmation
 
       // Should be in confirming state
       expect(patchQueueItem).toHaveBeenCalledWith("wt2", {
@@ -465,6 +486,7 @@ describe("deletionEngine", () => {
       scheduleItem(item, 1 / 60, win);
       const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
       const deletionPromise = job.callback();
+      await flushAsync(); // let attemptDeletion reach waitForConfirmation
 
       const confirmCall = vi
         .mocked(win.webContents.send)
@@ -489,6 +511,7 @@ describe("deletionEngine", () => {
       scheduleItem(item, 1 / 60, win);
       const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
       const deletionPromise = job.callback();
+      await flushAsync(); // let attemptDeletion reach waitForConfirmation
 
       const confirmCall = vi
         .mocked(win.webContents.send)
@@ -512,6 +535,7 @@ describe("deletionEngine", () => {
       scheduleItem(item, 1 / 60, win);
       const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
       const deletionPromise = job.callback();
+      await flushAsync(); // let attemptDeletion reach waitForConfirmation
 
       resolveConfirmation("wt3", "keep");
       await deletionPromise;
@@ -535,6 +559,7 @@ describe("deletionEngine", () => {
       scheduleItem(item, 1 / 60, win);
       const job = vi.mocked(schedule.scheduleJob).mock.results[0].value;
       const deletionPromise = job.callback();
+      await flushAsync(); // let attemptDeletion reach waitForConfirmation
 
       // Advance past the confirmation timeout (15s)
       vi.advanceTimersByTime(15_000);
