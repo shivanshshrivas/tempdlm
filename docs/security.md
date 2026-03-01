@@ -186,7 +186,7 @@ The `AddRuleForm` component validates extension values against `/^\.[a-z0-9]{1,1
 
 ### Process names in confirm dialog
 
-`isFileInWindowTitle()` truncates each process name to **32 characters** and the confirmation payload caps display at **3 process names**, appending `"…and N more"` if there are additional matches. This prevents excessively long process names from overflowing the UI.
+`isFileInWindowTitle()` truncates each process name to **32 characters**. The confirmation dialog payload caps display at **3 process names**, appending `"…and N more"` if there are additional matches. The system notification toast shows up to **2 process names** only. This prevents excessively long process names from overflowing the UI.
 
 ## 7. Auto-Update Security
 
