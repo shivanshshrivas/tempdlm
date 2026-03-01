@@ -1,5 +1,5 @@
 import fs from "fs";
-import { spawnSync } from "child_process";
+import { execFile } from "child_process";
 import { type BrowserWindow, Notification } from "electron";
 import * as schedule from "node-schedule";
 import { type QueueItem, IPC_EVENTS, type ConfirmDeletePayload } from "../shared/types";
@@ -65,42 +65,53 @@ const RM_CS = [
 
 /**
  * Returns true if any process currently has the file open.
- * Uses the Windows Restart Manager API via an inline PowerShell/C# call —
+ * Uses the Windows Restart Manager API via an async PowerShell/C# call —
  * this detects ALL openers regardless of their file-sharing flags, which is
  * impossible to do from pure Node.js fs calls.
- * Falls back to a rename probe if PowerShell is unavailable.
+ * Falls back to a rename probe if PowerShell is unavailable or times out.
  * @param filePath - Absolute path to the file to test.
- * @returns True if the file is locked by any process, false otherwise.
+ * @returns Promise resolving to true if the file is locked, false otherwise.
  */
-function isFileLocked(filePath: string): boolean {
+async function isFileLocked(filePath: string): Promise<boolean> {
   // PowerShell single-quoted strings are fully literal — only single-quotes need escaping.
   // Do NOT double backslashes; doing so passes an invalid path to the Restart Manager.
   const psPath = filePath.replace(/'/g, "''");
   const script = `Add-Type -TypeDefinition '${RM_CS}'; if ([RmCheck]::CountLockers('${psPath}') -gt 0) { exit 1 } else { exit 0 }`;
 
-  const result = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], {
-    timeout: 5000,
-    windowsHide: true,
+  return new Promise<boolean>((resolve) => {
+    execFile(
+      "powershell",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { timeout: 5000, windowsHide: true },
+      (err) => {
+        if (!err) {
+          resolve(false);
+          return;
+        }
+
+        // Non-zero exit code from PowerShell → file is locked (exit 1)
+        if (!err.killed && typeof err.code === "number") {
+          resolve(true);
+          return;
+        }
+
+        // Timeout or PowerShell unavailable — fall back to rename probe
+        const tmpPath = filePath + ".tdlm_lock_test";
+        try {
+          fs.renameSync(filePath, tmpPath);
+          fs.renameSync(tmpPath, filePath);
+          resolve(false);
+        } catch {
+          try {
+            if (fs.existsSync(tmpPath)) fs.renameSync(tmpPath, filePath);
+          } catch {
+            /* ignore */
+          }
+          resolve(true);
+        }
+      },
+    );
   });
-
-  if (result.error) {
-    // PowerShell unavailable — fall back to rename probe
-    const tmpPath = filePath + ".tdlm_lock_test";
-    try {
-      fs.renameSync(filePath, tmpPath);
-      fs.renameSync(tmpPath, filePath);
-      return false;
-    } catch {
-      try {
-        if (fs.existsSync(tmpPath)) fs.renameSync(tmpPath, filePath);
-      } catch {
-        /* ignore */
-      }
-      return true;
-    }
-  }
-
-  return result.status !== 0;
 }
 
 // ─── Window-title heuristic (Layer 2) ────────────────────────────────────────
@@ -111,28 +122,38 @@ function isFileLocked(filePath: string): boolean {
  * file handle — the Restart Manager won't detect these.
  * Returns empty array on failure (fail-open — deletion proceeds).
  * @param fileName - The file's base name to search for in window titles.
- * @returns Array of process names (at most 32 chars each) whose titles match.
+ * @returns Promise resolving to process names (at most 32 chars each) whose titles match.
  */
-function isFileInWindowTitle(fileName: string): string[] {
+async function isFileInWindowTitle(fileName: string): Promise<string[]> {
   const psName = fileName.replace(/'/g, "''");
   const script = `Get-Process | Where-Object { $_.MainWindowTitle -like '*${psName}*' } | Select-Object -ExpandProperty ProcessName -Unique`;
 
-  const result = spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], {
-    timeout: 3000,
-    windowsHide: true,
+  return new Promise<string[]>((resolve) => {
+    execFile(
+      "powershell",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { timeout: 3000, windowsHide: true },
+      (err, stdout) => {
+        if (err) {
+          resolve([]);
+          return;
+        }
+
+        const output = (stdout ?? "").trim();
+        if (!output) {
+          resolve([]);
+          return;
+        }
+
+        resolve(
+          output
+            .split(/\r?\n/)
+            .map((s) => s.trim().slice(0, 32))
+            .filter(Boolean),
+        );
+      },
+    );
   });
-
-  if (result.error || result.status !== 0) {
-    return [];
-  }
-
-  const output = result.stdout?.toString().trim() ?? "";
-  if (!output) return [];
-
-  return output
-    .split(/\r?\n/)
-    .map((s) => s.trim().slice(0, 32))
-    .filter(Boolean);
 }
 
 // ─── Confirmation helpers ────────────────────────────────────────────────────
@@ -225,7 +246,7 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
   }
 
   // 2. Check file lock
-  if (isFileLocked(item.filePath)) {
+  if (await isFileLocked(item.filePath)) {
     const newSnoozeCount = item.snoozeCount + 1;
 
     if (newSnoozeCount > MAX_SNOOZE_COUNT) {
@@ -255,7 +276,7 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
   }
 
   // 3. Window-title heuristic — catch editors that release file handles
-  const matchingProcesses = isFileInWindowTitle(item.fileName);
+  const matchingProcesses = await isFileInWindowTitle(item.fileName);
   if (matchingProcesses.length > 0) {
     patchQueueItem(itemId, { status: "confirming" });
 
@@ -341,9 +362,7 @@ function scheduleJobAt(itemId: string, fireAt: Date, win: BrowserWindow): void {
   const existing = jobs.get(itemId);
   if (existing) existing.cancel();
 
-  const job = schedule.scheduleJob(fireAt, () => {
-    attemptDeletion(itemId, win);
-  });
+  const job = schedule.scheduleJob(fireAt, () => attemptDeletion(itemId, win));
 
   if (job) {
     jobs.set(itemId, job);
