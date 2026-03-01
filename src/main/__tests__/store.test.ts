@@ -43,6 +43,7 @@ import {
   getSettings,
   saveSettings,
   patchSettings,
+  _resetQueueCache,
 } from "../store";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,6 +70,7 @@ function makeItem(overrides: Partial<QueueItem> = {}): QueueItem {
 describe("store", () => {
   beforeEach(async () => {
     mockStoreData.clear();
+    _resetQueueCache();
     // Re-initialise for each test
     await initStore();
   });
@@ -151,6 +153,49 @@ describe("store", () => {
       upsertQueueItem(makeItem({ id: "r" }));
       removeQueueItem("unknown");
       expect(getQueue()).toHaveLength(1);
+    });
+  });
+
+  // ── Queue cache ──────────────────────────────────────────────────────────
+
+  describe("queue cache", () => {
+    it("serves getQueue from cache without hitting disk on subsequent calls", () => {
+      const item = makeItem({ id: "c1" });
+      saveQueue([item]);
+
+      // Mutate the underlying store directly to prove getQueue reads from cache
+      mockStoreData.set("queue", []);
+
+      expect(getQueue()).toEqual([item]);
+    });
+
+    it("updates cache when saveQueue is called", () => {
+      const a = makeItem({ id: "a" });
+      const b = makeItem({ id: "b" });
+      saveQueue([a]);
+      saveQueue([a, b]);
+      expect(getQueue()).toHaveLength(2);
+    });
+
+    it("re-reads from disk after _resetQueueCache", () => {
+      saveQueue([makeItem({ id: "r1" })]);
+      // Mutate disk directly
+      mockStoreData.set("queue", []);
+      // Cache still has old value
+      expect(getQueue()).toHaveLength(1);
+      // After reset, falls back to disk
+      _resetQueueCache();
+      expect(getQueue()).toHaveLength(0);
+    });
+
+    it("populates cache on initStore", async () => {
+      const item = makeItem({ id: "pre" });
+      mockStoreData.set("queue", [item]);
+      _resetQueueCache();
+      await initStore();
+      // Wipe disk to prove cache is serving the data
+      mockStoreData.set("queue", []);
+      expect(getQueue()).toEqual([item]);
     });
   });
 
