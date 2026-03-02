@@ -17,6 +17,7 @@ import {
   patchSettings,
   getQueueItem,
   removeQueueItem,
+  pruneQueue,
 } from "./store";
 import { startWatcher, stopWatcher, setUnlinkCancelFn } from "./fileWatcher";
 import {
@@ -325,6 +326,7 @@ app.whenReady().then(async () => {
   setUnlinkCancelFn((itemId) => cancelItem(itemId));
 
   if (mainWindow) {
+    pruneQueue(7, 500);
     reconcileOnStartup(mainWindow);
     startWatcher(mainWindow, getSettings());
   }

@@ -1,18 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { type QueueItem, type UserSettings } from "../../shared/types";
 
-// ─── Mock electron ────────────────────────────────────────────────────────────
-// Must be declared before importing the module under test.
-
+// Mock electron
 vi.mock("electron", () => ({
   app: {
     getPath: (name: string) => (name === "downloads" ? "C:\\Users\\test\\Downloads" : "/tmp"),
   },
 }));
 
-// ─── Mock electron-store ──────────────────────────────────────────────────────
-// Simulates the ESM dynamic import with an in-memory Map.
-
+// Mock electron-store (ESM dynamic import)
 const mockStoreData = new Map<string, unknown>();
 
 vi.mock("electron-store", () => ({
@@ -30,12 +26,11 @@ vi.mock("electron-store", () => ({
   },
 }));
 
-// ─── Import after mocks ───────────────────────────────────────────────────────
-
 import {
   initStore,
   getQueue,
   saveQueue,
+  pruneQueue,
   getQueueItem,
   upsertQueueItem,
   patchQueueItem,
@@ -45,8 +40,6 @@ import {
   patchSettings,
   _resetQueueCache,
 } from "../store";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeItem(overrides: Partial<QueueItem> = {}): QueueItem {
   return {
@@ -65,17 +58,23 @@ function makeItem(overrides: Partial<QueueItem> = {}): QueueItem {
   };
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+function daysAgo(days: number, now: number): number {
+  return now - days * 24 * 60 * 60 * 1000;
+}
 
 describe("store", () => {
+  const now = Date.UTC(2026, 2, 1, 12, 0, 0);
+
   beforeEach(async () => {
     mockStoreData.clear();
     _resetQueueCache();
-    // Re-initialise for each test
+    vi.spyOn(Date, "now").mockReturnValue(now);
     await initStore();
   });
 
-  // ── Queue ──────────────────────────────────────────────────────────────────
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   describe("getQueue", () => {
     it("returns empty array when no queue saved", () => {
@@ -156,14 +155,93 @@ describe("store", () => {
     });
   });
 
-  // ── Queue cache ──────────────────────────────────────────────────────────
+  describe("pruneQueue", () => {
+    it("prunes terminal-status items older than threshold", () => {
+      saveQueue([
+        makeItem({ id: "deleted-old", status: "deleted", detectedAt: daysAgo(10, now) }),
+        makeItem({ id: "failed-old", status: "failed", detectedAt: daysAgo(9, now) }),
+        makeItem({ id: "never-old", status: "never", detectedAt: daysAgo(8, now) }),
+        makeItem({ id: "whitelisted-old", status: "whitelisted", detectedAt: daysAgo(20, now) }),
+        makeItem({ id: "pending-old", status: "pending", detectedAt: daysAgo(20, now) }),
+      ]);
+
+      const pruned = pruneQueue(7, 500);
+      expect(pruned).toBe(4);
+      expect(getQueue().map((i) => i.id)).toEqual(["pending-old"]);
+    });
+
+    it("keeps terminal-status items newer than threshold", () => {
+      saveQueue([
+        makeItem({ id: "deleted-new", status: "deleted", detectedAt: daysAgo(2, now) }),
+        makeItem({ id: "failed-new", status: "failed", detectedAt: daysAgo(1, now) }),
+        makeItem({ id: "never-new", status: "never", detectedAt: daysAgo(3, now) }),
+        makeItem({ id: "whitelisted-new", status: "whitelisted", detectedAt: daysAgo(4, now) }),
+      ]);
+
+      const pruned = pruneQueue(7, 500);
+      expect(pruned).toBe(0);
+      expect(getQueue()).toHaveLength(4);
+    });
+
+    it("keeps active items regardless of age", () => {
+      saveQueue([
+        makeItem({ id: "scheduled-old", status: "scheduled", detectedAt: daysAgo(50, now) }),
+        makeItem({ id: "snoozed-old", status: "snoozed", detectedAt: daysAgo(40, now) }),
+        makeItem({ id: "pending-old", status: "pending", detectedAt: daysAgo(30, now) }),
+        makeItem({ id: "confirming-old", status: "confirming", detectedAt: daysAgo(20, now) }),
+        makeItem({ id: "deleting-old", status: "deleting", detectedAt: daysAgo(10, now) }),
+      ]);
+
+      const pruned = pruneQueue(7, 500);
+      expect(pruned).toBe(0);
+      expect(getQueue()).toHaveLength(5);
+    });
+
+    it("enforces max queue size by removing oldest prunable items first", () => {
+      saveQueue([
+        makeItem({ id: "active-1", status: "pending", detectedAt: daysAgo(1, now) }),
+        makeItem({ id: "prunable-oldest", status: "deleted", detectedAt: daysAgo(6, now) }),
+        makeItem({ id: "prunable-mid", status: "failed", detectedAt: daysAgo(4, now) }),
+        makeItem({ id: "prunable-newest", status: "whitelisted", detectedAt: daysAgo(2, now) }),
+        makeItem({ id: "active-2", status: "scheduled", detectedAt: daysAgo(1, now) }),
+      ]);
+
+      const pruned = pruneQueue(30, 3);
+      expect(pruned).toBe(2);
+      expect(getQueue().map((i) => i.id)).toEqual(["active-1", "prunable-newest", "active-2"]);
+    });
+
+    it("returns the correct number of items pruned across both phases", () => {
+      saveQueue([
+        makeItem({ id: "age-pruned", status: "deleted", detectedAt: daysAgo(10, now) }),
+        makeItem({ id: "cap-pruned", status: "failed", detectedAt: daysAgo(3, now) }),
+        makeItem({ id: "keep-prunable", status: "whitelisted", detectedAt: daysAgo(1, now) }),
+        makeItem({ id: "active", status: "pending", detectedAt: daysAgo(1, now) }),
+      ]);
+
+      const pruned = pruneQueue(7, 2);
+      expect(pruned).toBe(2);
+      expect(getQueue().map((i) => i.id)).toEqual(["keep-prunable", "active"]);
+    });
+
+    it("is a no-op when queue is within age and size limits", () => {
+      saveQueue([
+        makeItem({ id: "active", status: "pending", detectedAt: daysAgo(1, now) }),
+        makeItem({ id: "recent-never", status: "never", detectedAt: daysAgo(1, now) }),
+      ]);
+
+      const before = getQueue();
+      const pruned = pruneQueue(7, 500);
+      expect(pruned).toBe(0);
+      expect(getQueue()).toEqual(before);
+    });
+  });
 
   describe("queue cache", () => {
     it("serves getQueue from cache without hitting disk on subsequent calls", () => {
       const item = makeItem({ id: "c1" });
       saveQueue([item]);
 
-      // Mutate the underlying store directly to prove getQueue reads from cache
       mockStoreData.set("queue", []);
 
       expect(getQueue()).toEqual([item]);
@@ -179,11 +257,8 @@ describe("store", () => {
 
     it("re-reads from disk after _resetQueueCache", () => {
       saveQueue([makeItem({ id: "r1" })]);
-      // Mutate disk directly
       mockStoreData.set("queue", []);
-      // Cache still has old value
       expect(getQueue()).toHaveLength(1);
-      // After reset, falls back to disk
       _resetQueueCache();
       expect(getQueue()).toHaveLength(0);
     });
@@ -193,13 +268,10 @@ describe("store", () => {
       mockStoreData.set("queue", [item]);
       _resetQueueCache();
       await initStore();
-      // Wipe disk to prove cache is serving the data
       mockStoreData.set("queue", []);
       expect(getQueue()).toEqual([item]);
     });
   });
-
-  // ── Settings ───────────────────────────────────────────────────────────────
 
   describe("getSettings", () => {
     it("returns defaults when no settings saved", () => {
@@ -234,21 +306,14 @@ describe("store", () => {
       const patched = patchSettings({ theme: "dark", launchAtStartup: true });
       expect(patched.theme).toBe("dark");
       expect(patched.launchAtStartup).toBe(true);
-      // Other fields unchanged
       expect(patched.defaultTimer).toBe(original.defaultTimer);
       expect(patched.downloadsFolder).toBe(original.downloadsFolder);
     });
   });
 
-  // ── Guard ──────────────────────────────────────────────────────────────────
-
   describe("initStore guard", () => {
     it("throws if used before initStore", async () => {
-      // Simulate uninitialised state by resetting the module
       const { getQueue: rawGetQueue } = await import("../store");
-      // Since we already called initStore in beforeEach, re-test by checking
-      // that the store works correctly after init (the throw path is hard to
-      // test with module caching, so we verify the positive path instead)
       expect(() => rawGetQueue()).not.toThrow();
     });
   });

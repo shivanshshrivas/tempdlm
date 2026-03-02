@@ -4,14 +4,21 @@ import { type QueueItem, type UserSettings } from "../shared/types";
 // electron-store v11 is ESM-only, so we use a dynamic import at module level
 // and expose a sync-style API after initialisation.
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface StoreSchema {
   queue: QueueItem[];
   settings: UserSettings;
 }
 
-// ─── Default values ───────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const PRUNE_STATUSES: QueueItem["status"][] = ["deleted", "failed", "never", "whitelisted"];
+const DEFAULT_PRUNE_DAYS = 7;
+const MAX_QUEUE_SIZE = 500;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// ─── Default values ──────────────────────────────────────────────────────────
 
 function defaultSettings(): UserSettings {
   return {
@@ -26,12 +33,12 @@ function defaultSettings(): UserSettings {
   };
 }
 
-// ─── Internal store instance ──────────────────────────────────────────────────
+// ─── Internal store instance ─────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _store: any = null;
 
-// In-memory cache — avoids full disk reads on every getQueue() call.
+// In-memory cache - avoids full disk reads on every getQueue() call.
 // Populated on initStore(); kept in sync by saveQueue() (write-through).
 let _queueCache: QueueItem[] | null = null;
 
@@ -57,11 +64,11 @@ export async function initStore(): Promise<void> {
 
 function assertInitialised(): void {
   if (!_store) {
-    throw new Error("Store not initialised — call initStore() first");
+    throw new Error("Store not initialised - call initStore() first");
   }
 }
 
-// ─── Queue helpers ────────────────────────────────────────────────────────────
+// ─── Queue helpers ───────────────────────────────────────────────────────────
 
 /**
  * Returns the full queue from the in-memory cache (populated on init).
@@ -70,7 +77,7 @@ function assertInitialised(): void {
 export function getQueue(): QueueItem[] {
   assertInitialised();
   if (_queueCache !== null) return _queueCache;
-  // Defensive fallback — should only happen if initStore() was bypassed
+  // Defensive fallback - should only happen if initStore() was bypassed
   _queueCache = _store.get("queue", []) as QueueItem[];
   return _queueCache;
 }
@@ -83,6 +90,49 @@ export function saveQueue(queue: QueueItem[]): void {
   assertInitialised();
   _store.set("queue", queue);
   _queueCache = [...queue];
+}
+
+function isPrunableStatus(status: QueueItem["status"]): boolean {
+  return PRUNE_STATUSES.includes(status);
+}
+
+function getDetectedAtMs(item: QueueItem): number {
+  return Number.isFinite(item.detectedAt) ? item.detectedAt : 0;
+}
+
+/**
+ * Prunes stale terminal-status queue items and enforces a hard queue size cap.
+ * @param olderThanDays - Remove prunable items older than this many days.
+ * @param maxItems - Maximum queue size after pruning oldest prunable items.
+ * @returns Number of items removed from the queue.
+ */
+export function pruneQueue(olderThanDays = DEFAULT_PRUNE_DAYS, maxItems = MAX_QUEUE_SIZE): number {
+  const queue = getQueue();
+  const cutoffMs = Date.now() - Math.max(0, olderThanDays) * MS_PER_DAY;
+
+  let prunedQueue = queue.filter((item) => {
+    const isOldPrunable = isPrunableStatus(item.status) && getDetectedAtMs(item) < cutoffMs;
+    return !isOldPrunable;
+  });
+
+  if (prunedQueue.length > maxItems) {
+    const overflow = prunedQueue.length - maxItems;
+    const oldestPrunable = prunedQueue
+      .filter((item) => isPrunableStatus(item.status))
+      .sort((a, b) => getDetectedAtMs(a) - getDetectedAtMs(b))
+      .slice(0, overflow);
+
+    if (oldestPrunable.length > 0) {
+      const idsToRemove = new Set(oldestPrunable.map((item) => item.id));
+      prunedQueue = prunedQueue.filter((item) => !idsToRemove.has(item.id));
+    }
+  }
+
+  const prunedCount = queue.length - prunedQueue.length;
+  if (prunedCount > 0) {
+    saveQueue(prunedQueue);
+  }
+  return prunedCount;
 }
 
 /**
@@ -135,14 +185,14 @@ export function removeQueueItem(itemId: string): void {
 }
 
 /**
- * Resets the in-memory queue cache. Test-only — forces the next getQueue()
+ * Resets the in-memory queue cache. Test-only - forces the next getQueue()
  * to re-read from the underlying store.
  */
 export function _resetQueueCache(): void {
   _queueCache = null;
 }
 
-// ─── Settings helpers ─────────────────────────────────────────────────────────
+// ─── Settings helpers ────────────────────────────────────────────────────────
 
 /**
  * Returns the current user settings from the persistent store.
