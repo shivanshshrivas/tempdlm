@@ -1,6 +1,6 @@
 # TempDLM - Temporary Download Manager
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-CC%20BY--NC--ND%204.0-green)
 ![Release](https://img.shields.io/github/downloads/shivanshshrivas/tempdlm/total)
@@ -44,4 +44,4 @@ To report a vulnerability, see [`.github/SECURITY.md`](.github/SECURITY.md).
 
 ## License
 
-[CC BY-NC-ND 4.0](LICENSE) — Source-available. Free to use personally; no derivatives or commercial use.
+[CC BY-NC-ND 4.0](LICENSE) - Source-available. Free to use personally; no derivatives or commercial use.
