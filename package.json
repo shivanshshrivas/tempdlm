@@ -22,7 +22,16 @@
     "type": "git",
     "url": "git+https://github.com/shivanshshrivas/tempdlm.git"
   },
-  "keywords": [],
+  "keywords": [
+    "download-manager",
+    "downloads-folder",
+    "auto-delete",
+    "file-cleanup",
+    "file-watcher",
+    "electron",
+    "react",
+    "windows"
+  ],
   "author": "",
   "license": "CC-BY-NC-ND-4.0",
   "bugs": {
