@@ -223,4 +223,3 @@ export function patchSettings(patch: Partial<UserSettings>): UserSettings {
   saveSettings(updated);
   return updated;
 }
-
