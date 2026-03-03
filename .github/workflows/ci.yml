@@ -84,7 +84,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --no-fund
+      - run: npm install --no-fund
       - run: npm run format:check
 
   typecheck:
