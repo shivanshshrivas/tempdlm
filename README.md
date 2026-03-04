@@ -31,6 +31,29 @@ Pick 5 minutes, 30 minutes, 2 hours, 1 day, or Never - then forget about it. Whe
 - **Persistent queue** - Timers survive app restarts
 - **Light mode / system theme** - Follows OS dark/light preference, or set it manually in Settings
 
+## Keyboard shortcuts
+
+### New file dialog
+
+| Key      | Action                                              |
+| -------- | --------------------------------------------------- |
+| `1`      | Set timer to 5 minutes                              |
+| `2`      | Set timer to 30 minutes                             |
+| `3`      | Set timer to 2 hours                                |
+| `4`      | Set timer to 1 day                                  |
+| `N`      | Set timer to Never                                  |
+| `C`      | Open and focus custom duration input                |
+| `Enter`  | Confirm custom duration (when custom panel is open) |
+| `Escape` | Dismiss dialog                                      |
+
+### Confirm delete dialog
+
+| Key      | Action        |
+| -------- | ------------- |
+| `D`      | Delete anyway |
+| `K`      | Keep file     |
+| `Escape` | Keep file     |
+
 ## Installation
 
 Download the latest installer from [Releases](https://github.com/shivanshshrivas/tempdlm/releases).
