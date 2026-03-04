@@ -3,10 +3,11 @@
 This document describes the security architecture, hardening decisions, input validation strategy, and known trade-offs for TempDLM v1.x.
 
 <details>
-<summary><strong>Change log</strong> (last updated: 2026-03-02)</summary>
+<summary><strong>Change log</strong> (last updated: 2026-03-04)</summary>
 
 | Date       | Issue                                                       | Summary                                                               |
 | ---------- | ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| 2026-03-04 | [#41](https://github.com/shivanshshrivas/tempdlm/issues/41) | Added persistent main-process structured logging (`electron-log`)     |
 | 2026-03-01 | [#38](https://github.com/shivanshshrivas/tempdlm/issues/38) | Preload bridge now throws on IPC failure responses                    |
 | 2026-03-01 | [#37](https://github.com/shivanshshrivas/tempdlm/issues/37) | Lock detection migrated from blocking `spawnSync` to async `execFile` |
 | 2026-02-26 | [#26](https://github.com/shivanshshrivas/tempdlm/issues/26) | minimatch high vuln fixed (→ 10.2.4)                                  |
