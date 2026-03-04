@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { type QueueItem } from "../../shared/types";
 import { formatBytes, middleTruncate } from "../utils/format";
 
@@ -18,6 +18,12 @@ const PRESETS: { label: string; value: Preset; minutes: number }[] = [
   { label: "1 day", value: "1d", minutes: 1440 },
 ];
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -32,30 +38,34 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
   const [customUnit, setCustomUnit] = useState<"minutes" | "hours" | "days">("minutes");
   const [customError, setCustomError] = useState("");
   const [ipcError, setIpcError] = useState("");
+  const customAmountInputRef = useRef<HTMLInputElement>(null);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
-  async function handlePreset(minutes: number) {
-    try {
-      await window.tempdlm.setTimer({ itemId: item.id, minutes });
-      onDismiss();
-    } catch (err) {
-      setIpcError(err instanceof Error ? err.message : "Failed to set timer");
-    }
-  }
+  const handlePreset = useCallback(
+    async (minutes: number) => {
+      try {
+        await window.tempdlm.setTimer({ itemId: item.id, minutes });
+        onDismiss();
+      } catch (err) {
+        setIpcError(err instanceof Error ? err.message : "Failed to set timer");
+      }
+    },
+    [item.id, onDismiss],
+  );
 
-  async function handleNever() {
+  const handleNever = useCallback(async () => {
     try {
       await window.tempdlm.setTimer({ itemId: item.id, minutes: null });
       onDismiss();
     } catch (err) {
       setIpcError(err instanceof Error ? err.message : "Failed to set timer");
     }
-  }
+  }, [item.id, onDismiss]);
 
   const MAX_MINUTES = 40_320; // 28 days
 
-  async function handleCustomSubmit() {
+  const handleCustomSubmit = useCallback(async () => {
     const num = parseFloat(customValue);
     if (!customValue || isNaN(num) || num <= 0) {
       setCustomError("Enter a positive number");
@@ -86,12 +96,74 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
     } catch (err) {
       setIpcError(err instanceof Error ? err.message : "Failed to set timer");
     }
-  }
+  }, [customUnit, customValue, item.id, onDismiss]);
 
   function handleCustomValueChange(val: string) {
     setCustomValue(val);
     if (customError) setCustomError("");
   }
+
+  const focusCustomAmountInput = useCallback(() => {
+    setShowCustom(true);
+    window.setTimeout(() => customAmountInputRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    function handleGlobalKeyDown(event: KeyboardEvent) {
+      const key = event.key.toLowerCase();
+
+      if (key === "escape") {
+        event.preventDefault();
+        onDismiss();
+        return;
+      }
+
+      if (key === "enter" && showCustom) {
+        event.preventDefault();
+        void handleCustomSubmit();
+        return;
+      }
+
+      if (isEditableTarget(event.target)) return;
+
+      switch (key) {
+        case "1":
+          event.preventDefault();
+          void handlePreset(5);
+          break;
+        case "2":
+          event.preventDefault();
+          void handlePreset(30);
+          break;
+        case "3":
+          event.preventDefault();
+          void handlePreset(120);
+          break;
+        case "4":
+          event.preventDefault();
+          void handlePreset(1440);
+          break;
+        case "n":
+          event.preventDefault();
+          void handleNever();
+          break;
+        case "c":
+          event.preventDefault();
+          focusCustomAmountInput();
+          break;
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [
+    showCustom,
+    onDismiss,
+    handleCustomSubmit,
+    handleNever,
+    handlePreset,
+    focusCustomAmountInput,
+  ]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -173,6 +245,7 @@ export default function NewFileDialog({ item, onDismiss }: Props) {
         <div className="mt-2 space-y-2">
           <div className="flex gap-2">
             <input
+              ref={customAmountInputRef}
               type="number"
               min="1"
               max="40320"

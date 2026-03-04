@@ -9,6 +9,12 @@ interface Props {
   onDismiss: () => void;
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName.toLowerCase();
+  return tag === "input" || tag === "textarea" || tag === "select" || target.isContentEditable;
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -61,6 +67,26 @@ export default function ConfirmDeleteDialog({ payload, onDismiss }: Props) {
     }, 100);
     return () => clearInterval(interval);
   }, [item.id, deadline, onDismiss]);
+
+  useEffect(() => {
+    function handleGlobalKeyDown(event: KeyboardEvent) {
+      if (isEditableTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+      if (key === "d") {
+        event.preventDefault();
+        handleDelete();
+        return;
+      }
+      if (key === "k" || key === "escape") {
+        event.preventDefault();
+        handleKeep();
+      }
+    }
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [handleDelete, handleKeep]);
 
   const progressFraction = remainingMs / timeoutMs;
   const processLabel = processNames.join(", ");
