@@ -4,6 +4,7 @@ import { type BrowserWindow, Notification } from "electron";
 import * as schedule from "node-schedule";
 import { type QueueItem, IPC_EVENTS, type ConfirmDeletePayload } from "../shared/types";
 import { getQueueItem, patchQueueItem, getQueue, getSettings } from "./store";
+import log from "./logger";
 
 // trash is ESM-only. We load it once at startup via initDeletionEngine()
 // and hold a reference here so vi.mock('trash') can intercept it in tests.
@@ -16,6 +17,7 @@ let _trash: TrashFn | null = null;
 export async function initDeletionEngine(): Promise<void> {
   const mod = await import("trash");
   _trash = mod.default as TrashFn;
+  log.info("[deletionEngine] initialised");
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -39,6 +41,11 @@ interface PendingConfirmation {
   timer: ReturnType<typeof setTimeout>;
 }
 const pendingConfirmations = new Map<string, PendingConfirmation>();
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
 
 // ─── File lock detection ──────────────────────────────────────────────────────
 
@@ -236,9 +243,20 @@ function showConfirmDeleteNotification(item: QueueItem, processNames: string[]):
 async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void> {
   const item = getQueueItem(itemId);
   if (!item) return; // item was removed from store externally
+  log.info("[deletionEngine] timer fired", {
+    fileName: item.fileName,
+    scheduledFor: item.scheduledFor,
+  });
+  log.debug("[deletionEngine] deletion attempt details", {
+    filePath: item.filePath,
+    itemId,
+  });
 
   // 1. Check file exists
   if (!fs.existsSync(item.filePath)) {
+    log.info("[deletionEngine] file already missing at deletion time", {
+      fileName: item.fileName,
+    });
     patchQueueItem(itemId, { status: "deleted" });
     win.webContents.send(IPC_EVENTS.FILE_DELETED, itemId);
     jobs.delete(itemId);
@@ -246,10 +264,20 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
   }
 
   // 2. Check file lock
-  if (await isFileLocked(item.filePath)) {
+  const layer1Locked = await isFileLocked(item.filePath);
+  log.info("[deletionEngine] lock check result", {
+    fileName: item.fileName,
+    layer: "restart-manager",
+    locked: layer1Locked,
+  });
+  if (layer1Locked) {
     const newSnoozeCount = item.snoozeCount + 1;
 
     if (newSnoozeCount > MAX_SNOOZE_COUNT) {
+      log.error("[deletionEngine] max snooze retries exceeded", {
+        fileName: item.fileName,
+        maxRetries: MAX_SNOOZE_COUNT,
+      });
       // Give up — mark as failed
       patchQueueItem(itemId, {
         status: "failed",
@@ -267,6 +295,11 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
       snoozeCount: newSnoozeCount,
       scheduledFor: snoozedUntil,
     });
+    log.warn("[deletionEngine] file locked; snoozing deletion", {
+      fileName: item.fileName,
+      snoozeAttempt: newSnoozeCount,
+      maxRetries: MAX_SNOOZE_COUNT,
+    });
     const updatedItem = getQueueItem(itemId)!;
     win.webContents.send(IPC_EVENTS.FILE_IN_USE, updatedItem);
     win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
@@ -277,8 +310,18 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
 
   // 3. Window-title heuristic — catch editors that release file handles
   const matchingProcesses = await isFileInWindowTitle(item.fileName);
+  log.info("[deletionEngine] lock check result", {
+    fileName: item.fileName,
+    layer: "window-title",
+    locked: matchingProcesses.length > 0,
+    processCount: matchingProcesses.length,
+  });
   if (matchingProcesses.length > 0) {
     patchQueueItem(itemId, { status: "confirming" });
+    log.warn("[deletionEngine] confirm-delete initiated", {
+      fileName: item.fileName,
+      processCount: matchingProcesses.length,
+    });
 
     // Always bring the window to the foreground so the user sees the
     // confirmation dialog immediately — this is time-sensitive.
@@ -306,6 +349,10 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
     showConfirmDeleteNotification(confirmPayload.item, displayedProcesses);
 
     const decision = await waitForConfirmation(itemId, CONFIRM_TIMEOUT_MS);
+    log.info("[deletionEngine] confirm-delete resolved", {
+      fileName: item.fileName,
+      decision,
+    });
 
     if (decision === "keep") {
       patchQueueItem(itemId, { status: "pending", scheduledFor: null });
@@ -319,6 +366,7 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
   // 4. Trash the file
   patchQueueItem(itemId, { status: "deleting" });
   win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+  log.info("[deletionEngine] deleting file", { fileName: item.fileName });
 
   try {
     if (!_trash)
@@ -328,6 +376,7 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
     patchQueueItem(itemId, { status: "deleted" });
     win.webContents.send(IPC_EVENTS.FILE_DELETED, itemId);
     jobs.delete(itemId);
+    log.info("[deletionEngine] deletion succeeded", { fileName: item.fileName });
   } catch (err) {
     // trash() failed — likely a transient lock (e.g. file handle still open).
     // Snooze and retry rather than giving up immediately.
@@ -335,16 +384,25 @@ async function attemptDeletion(itemId: string, win: BrowserWindow): Promise<void
     const newSnoozeCount = (freshItem?.snoozeCount ?? item.snoozeCount) + 1;
 
     if (newSnoozeCount > MAX_SNOOZE_COUNT) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = getErrorMessage(err);
       patchQueueItem(itemId, { status: "failed", error: message });
       win.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
       jobs.delete(itemId);
+      log.error("[deletionEngine] deletion failed after retries", {
+        fileName: item.fileName,
+        error: message,
+      });
     } else {
       const snoozedUntil = Date.now() + SNOOZE_MINUTES * 60 * 1000;
       patchQueueItem(itemId, {
         status: "snoozed",
         snoozeCount: newSnoozeCount,
         scheduledFor: snoozedUntil,
+      });
+      log.warn("[deletionEngine] transient deletion failure; snoozing", {
+        fileName: item.fileName,
+        snoozeAttempt: newSnoozeCount,
+        error: getErrorMessage(err),
       });
       const updatedItem = getQueueItem(itemId)!;
       win.webContents.send(IPC_EVENTS.FILE_IN_USE, updatedItem);
@@ -366,6 +424,11 @@ function scheduleJobAt(itemId: string, fireAt: Date, win: BrowserWindow): void {
 
   if (job) {
     jobs.set(itemId, job);
+    const item = getQueueItem(itemId);
+    log.info("[deletionEngine] deletion scheduled", {
+      fileName: item?.fileName ?? "unknown",
+      fireAt: fireAt.getTime(),
+    });
   }
 }
 
@@ -401,6 +464,7 @@ export function scheduleItem(item: QueueItem, minutes: number | null, win: Brows
  * @param itemId - The queue item ID whose scheduled deletion to cancel.
  */
 export function cancelItem(itemId: string): void {
+  const item = getQueueItem(itemId);
   const job = jobs.get(itemId);
   if (job) {
     job.cancel();
@@ -408,6 +472,7 @@ export function cancelItem(itemId: string): void {
   }
   resolveConfirmation(itemId, "keep");
   patchQueueItem(itemId, { status: "pending", scheduledFor: null });
+  log.info("[deletionEngine] deletion cancelled", { fileName: item?.fileName ?? "unknown" });
 }
 
 /**
@@ -430,6 +495,10 @@ export function snoozeItem(itemId: string, win: BrowserWindow): void {
     snoozeCount: newSnoozeCount,
     scheduledFor: snoozedUntil,
   });
+  log.info("[deletionEngine] manual snooze applied", {
+    fileName: item.fileName,
+    snoozeAttempt: newSnoozeCount,
+  });
 
   scheduleJobAt(itemId, new Date(snoozedUntil), win);
 }
@@ -441,6 +510,7 @@ export function snoozeItem(itemId: string, win: BrowserWindow): void {
  */
 export function reconcileOnStartup(win: BrowserWindow): void {
   const queue = getQueue();
+  log.info("[deletionEngine] startup reconciliation started", { queueSize: queue.length });
   const now = Date.now();
   let overdueDelay = 0;
 
@@ -478,6 +548,7 @@ export function reconcileOnStartup(win: BrowserWindow): void {
  * Cancel all active jobs. Call on app quit.
  */
 export function cancelAllJobs(): void {
+  log.info("[deletionEngine] cancelling all jobs");
   for (const job of jobs.values()) {
     job.cancel();
   }

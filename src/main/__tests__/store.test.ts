@@ -26,6 +26,18 @@ vi.mock("electron-store", () => ({
   },
 }));
 
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+vi.mock("../logger", () => ({
+  default: mockLogger,
+}));
+
 import {
   initStore,
   getQueue,
@@ -66,6 +78,7 @@ describe("store", () => {
   const now = Date.UTC(2026, 2, 1, 12, 0, 0);
 
   beforeEach(async () => {
+    vi.clearAllMocks();
     mockStoreData.clear();
     _resetQueueCache();
     vi.spyOn(Date, "now").mockReturnValue(now);
@@ -79,6 +92,14 @@ describe("store", () => {
   describe("getQueue", () => {
     it("returns empty array when no queue saved", () => {
       expect(getQueue()).toEqual([]);
+    });
+  });
+
+  describe("logging", () => {
+    it("logs store initialization", () => {
+      expect(mockLogger.info).toHaveBeenCalledWith("[store] initialised", {
+        queueSize: 0,
+      });
     });
   });
 

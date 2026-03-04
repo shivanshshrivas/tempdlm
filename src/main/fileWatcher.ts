@@ -10,6 +10,7 @@ import chokidar, { type FSWatcher } from "chokidar";
 import { randomUUID } from "crypto";
 import { type QueueItem, type UserSettings, type WhitelistRule, IPC_EVENTS } from "../shared/types";
 import { upsertQueueItem, getSettings, getQueue, patchQueueItem } from "./store";
+import log from "./logger";
 
 // ─── Internal state ───────────────────────────────────────────────────────────
 
@@ -32,6 +33,11 @@ const recentlyUnlinkedByInode = new Map<
 // Callback set by main to cancel a scheduled job when a file is unlinked.
 // Avoids circular import between fileWatcher <-> deletionEngine.
 let _cancelJobFn: ((itemId: string) => void) | null = null;
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
 
 /**
  * Registers the callback that cancels a deletion job when a file is unlinked.
@@ -139,16 +145,22 @@ function handleFileChanged(filePath: string, win: BrowserWindow): void {
  * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 function handleNewFile(filePath: string, win: BrowserWindow): void {
+  const fileName = winPath.basename(filePath);
+
   // Skip if this exact path is already tracked as an active item
   const existingByPath = getQueue().find(
     (i) => i.filePath === filePath && i.status !== "deleted" && i.status !== "failed",
   );
-  if (existingByPath) return;
+  if (existingByPath) {
+    log.debug("[fileWatcher] duplicate active path ignored", { filePath });
+    return;
+  }
 
   let stat: fs.Stats;
   try {
     stat = fs.statSync(filePath);
   } catch {
+    log.debug("[fileWatcher] file disappeared before stat", { filePath });
     return; // file disappeared before we could stat it
   }
 
@@ -159,7 +171,13 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
     clearTimeout(renameEntry.timer);
     recentlyUnlinkedByInode.delete(stat.ino);
 
-    const fileName = winPath.basename(filePath);
+    log.info("[fileWatcher] rename/inode match detected", { fileName, inode: stat.ino });
+    log.debug("[fileWatcher] rename patched existing item", {
+      inode: stat.ino,
+      filePath,
+      itemId: renameEntry.itemId,
+    });
+
     const fileExtension = winPath.extname(fileName).toLowerCase();
 
     // Patch the existing item with the new path/name, keep everything else
@@ -174,7 +192,6 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
   }
 
   // ── New file ─────────────────────────────────────────────────────────────
-  const fileName = winPath.basename(filePath);
   const fileExtension = winPath.extname(fileName).toLowerCase();
 
   const item: QueueItem = {
@@ -195,6 +212,11 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
   const rule = matchWhitelistRule(item.fileName, settings.whitelistRules);
 
   if (rule) {
+    log.info("[fileWatcher] whitelist rule matched", {
+      fileName: item.fileName,
+      ruleType: rule.type,
+      action: rule.action,
+    });
     if (rule.action === "never-delete") {
       item.status = "whitelisted";
       upsertQueueItem(item);
@@ -214,6 +236,8 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
   // Normal path: persist as pending, send to renderer for dialog
   upsertQueueItem(item);
   win.webContents.send(IPC_EVENTS.FILE_NEW, item);
+  log.info("[fileWatcher] queued new file", { fileName: item.fileName });
+  log.debug("[fileWatcher] file queued with path", { filePath: item.filePath });
 
   // Show native toast if enabled
   if (settings.showNotifications && Notification.isSupported()) {
@@ -241,6 +265,8 @@ function handleNewFile(filePath: string, win: BrowserWindow): void {
  * @param win - The main BrowserWindow for sending IPC events to the renderer.
  */
 function handleFileUnlinked(filePath: string, win: BrowserWindow): void {
+  log.debug("[fileWatcher] unlink detected", { filePath });
+
   // Cancel any pending debounce for this path (rapid create-then-delete)
   const pending = debounceTimers.get(filePath);
   if (pending) {
@@ -279,6 +305,8 @@ function handleFileUnlinked(filePath: string, win: BrowserWindow): void {
  */
 export function startWatcher(win: BrowserWindow, settings: UserSettings): void {
   stopWatcher();
+  log.info("[fileWatcher] starting downloads watcher");
+  log.debug("[fileWatcher] watcher target folder", { downloadsFolder: settings.downloadsFolder });
 
   watcher = chokidar.watch(settings.downloadsFolder, {
     depth: 0,
@@ -292,11 +320,21 @@ export function startWatcher(win: BrowserWindow, settings: UserSettings): void {
   });
 
   watcher.on("add", (filePath: string) => {
+    const fileName = winPath.basename(filePath);
+    log.info("[fileWatcher] file detected", { fileName });
+    log.debug("[fileWatcher] file add event path", { filePath });
+
     const existing = debounceTimers.get(filePath);
-    if (existing) clearTimeout(existing);
+    if (existing) {
+      clearTimeout(existing);
+      log.info("[fileWatcher] debounce reset for file", { fileName });
+      log.debug("[fileWatcher] debounce reset path", { filePath });
+    }
 
     const timer = setTimeout(() => {
       debounceTimers.delete(filePath);
+      log.info("[fileWatcher] debounce triggered", { fileName });
+      log.debug("[fileWatcher] debounce fired path", { filePath });
       handleNewFile(filePath, win);
     }, DEBOUNCE_MS);
 
@@ -312,7 +350,7 @@ export function startWatcher(win: BrowserWindow, settings: UserSettings): void {
   });
 
   watcher.on("error", (error: unknown) => {
-    console.error("[fileWatcher] error:", error);
+    log.error("[fileWatcher] watcher error", { error: getErrorMessage(error) });
   });
 }
 
@@ -321,6 +359,7 @@ export function startWatcher(win: BrowserWindow, settings: UserSettings): void {
  */
 export function stopWatcher(): void {
   if (watcher) {
+    log.info("[fileWatcher] stopping watcher");
     watcher.close();
     watcher = null;
   }

@@ -38,6 +38,14 @@ Download the latest installer from [Releases](https://github.com/shivanshshrivas
 > [!NOTE]
 > Requires Windows 10 or 11.
 
+## Troubleshooting Logs
+
+TempDLM writes structured main-process logs to:
+
+`%APPDATA%\tempdlm\logs\main.log`
+
+When reporting a bug, attach this file so failures in file watching, deletion, store persistence, and updates can be diagnosed quickly.
+
 ## Security
 
 To report a vulnerability, see [`.github/SECURITY.md`](.github/SECURITY.md).

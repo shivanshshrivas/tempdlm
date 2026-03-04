@@ -47,6 +47,18 @@ vi.mock("../store", () => ({
   getSettings: vi.fn(() => ({ showNotifications: true })),
 }));
 
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+vi.mock("../logger", () => ({
+  default: mockLogger,
+}));
+
 // ── node-schedule mock ────────────────────────────────────────────────────────
 
 const mockJobs = new Map<string, { cancel: ReturnType<typeof vi.fn>; callback: () => void }>();
@@ -379,6 +391,14 @@ describe("deletionEngine", () => {
       expect(vi.mocked(trashModule.default)).toHaveBeenCalledWith(item.filePath);
       expect(patchQueueItem).toHaveBeenCalledWith("l", { status: "deleted" });
       expect(win.webContents.send).toHaveBeenCalledWith("file:deleted", "l");
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        "[deletionEngine] timer fired",
+        expect.objectContaining({ fileName: "file.zip" }),
+      );
+      expect(mockLogger.info).toHaveBeenCalledWith(
+        "[deletionEngine] deletion succeeded",
+        expect.objectContaining({ fileName: "file.zip" }),
+      );
     });
 
     it("snoozes a locked file and increments snoozeCount", async () => {
@@ -401,6 +421,10 @@ describe("deletionEngine", () => {
         }),
       );
       expect(win.webContents.send).toHaveBeenCalledWith("file:in-use", expect.anything());
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        "[deletionEngine] file locked; snoozing deletion",
+        expect.objectContaining({ snoozeAttempt: 1 }),
+      );
     });
 
     it("marks failed after max snooze retries exceeded", async () => {
@@ -419,6 +443,10 @@ describe("deletionEngine", () => {
         expect.objectContaining({
           status: "failed",
         }),
+      );
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        "[deletionEngine] max snooze retries exceeded",
+        expect.objectContaining({ fileName: "file.zip" }),
       );
     });
   });

@@ -1,6 +1,7 @@
 import { type BrowserWindow, ipcMain, shell } from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 import { IPC_EVENTS, IPC_INVOKE, type AppUpdateInfo, type UpdateProgress } from "../shared/types";
+import log from "./logger";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,11 @@ const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1_000; // 6 hours
 
 let win: BrowserWindow | null = null;
 let intervalId: ReturnType<typeof setInterval> | null = null;
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,6 +45,7 @@ function extractReleaseNotes(info: UpdateInfo): string {
  */
 export function initUpdater(mainWindow: BrowserWindow): void {
   win = mainWindow;
+  log.info("[updater] initialised");
 
   // Don't auto-download — let the user decide
   autoUpdater.autoDownload = false;
@@ -47,6 +54,7 @@ export function initUpdater(mainWindow: BrowserWindow): void {
   // ── Events ──────────────────────────────────────────────────────────────
 
   autoUpdater.on("update-available", (info: UpdateInfo) => {
+    log.info("[updater] update available", { version: info.version });
     const owner = "shivanshshrivas";
     const repo = "tempdlm";
 
@@ -61,6 +69,11 @@ export function initUpdater(mainWindow: BrowserWindow): void {
   });
 
   autoUpdater.on("download-progress", (progress) => {
+    log.debug("[updater] download progress", {
+      percent: progress.percent,
+      transferred: progress.transferred,
+      total: progress.total,
+    });
     const payload: UpdateProgress = {
       percent: progress.percent,
       bytesPerSecond: progress.bytesPerSecond,
@@ -71,24 +84,28 @@ export function initUpdater(mainWindow: BrowserWindow): void {
   });
 
   autoUpdater.on("update-downloaded", () => {
+    log.info("[updater] update downloaded");
     win?.webContents.send(IPC_EVENTS.UPDATE_DOWNLOADED);
   });
 
   autoUpdater.on("error", (err: Error) => {
+    log.error("[updater] updater error", { error: err.message });
     win?.webContents.send(IPC_EVENTS.UPDATE_ERROR, err.message);
   });
 
   // ── Scheduled checks ───────────────────────────────────────────────────
 
   setTimeout(() => {
+    log.info("[updater] scheduled update check triggered");
     autoUpdater.checkForUpdates().catch(() => {
-      // Silently ignore — network errors, dev mode, etc.
+      log.warn("[updater] scheduled update check failed");
     });
   }, CHECK_DELAY_MS);
 
   intervalId = setInterval(() => {
+    log.info("[updater] periodic update check triggered");
     autoUpdater.checkForUpdates().catch(() => {
-      // Silently ignore
+      log.warn("[updater] periodic update check failed");
     });
   }, CHECK_INTERVAL_MS);
 }
@@ -101,31 +118,43 @@ export function initUpdater(mainWindow: BrowserWindow): void {
  */
 export function registerUpdateHandlers(): void {
   ipcMain.handle(IPC_INVOKE.UPDATE_CHECK, async () => {
+    log.info("[updater] manual update check requested");
     try {
       await autoUpdater.checkForUpdates();
+      log.info("[updater] manual update check completed");
       return { success: true };
     } catch (err) {
-      return { success: false, error: (err as Error).message };
+      const message = getErrorMessage(err);
+      log.warn("[updater] manual update check failed", { error: message });
+      return { success: false, error: message };
     }
   });
 
   ipcMain.handle(IPC_INVOKE.UPDATE_DOWNLOAD, async () => {
+    log.info("[updater] update download requested");
     try {
       await autoUpdater.downloadUpdate();
+      log.info("[updater] update download started");
       return { success: true };
     } catch (err) {
-      return { success: false, error: (err as Error).message };
+      const message = getErrorMessage(err);
+      log.error("[updater] update download failed", { error: message });
+      return { success: false, error: message };
     }
   });
 
   ipcMain.handle(IPC_INVOKE.UPDATE_INSTALL, () => {
+    log.info("[updater] update install triggered");
     autoUpdater.quitAndInstall();
   });
 
   ipcMain.handle(IPC_INVOKE.OPEN_EXTERNAL, (_e, url: string) => {
     // Allowlist: only GitHub URLs to prevent the renderer from opening arbitrary sites
     if (typeof url === "string" && url.startsWith("https://github.com/shivanshshrivas/tempdlm/")) {
+      log.info("[updater] opening external GitHub URL");
       shell.openExternal(url);
+    } else {
+      log.warn("[updater] blocked non-allowlisted external URL");
     }
     return { success: true };
   });
@@ -134,12 +163,13 @@ export function registerUpdateHandlers(): void {
 // ─── Manual trigger ───────────────────────────────────────────────────────────
 
 /**
- * Triggers an immediate update check, silently ignoring network or mode errors.
+ * Triggers an immediate update check and logs recoverable failures as warnings.
  * Safe to call from the tray menu at any time.
  */
 export function checkForUpdatesNow(): void {
+  log.info("[updater] tray update check triggered");
   autoUpdater.checkForUpdates().catch(() => {
-    // Silently ignore — network errors, dev mode, etc.
+    log.warn("[updater] tray update check failed");
   });
 }
 
@@ -155,4 +185,5 @@ export function stopUpdater(): void {
     intervalId = null;
   }
   win = null;
+  log.info("[updater] stopped");
 }

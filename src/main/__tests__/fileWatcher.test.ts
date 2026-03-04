@@ -49,6 +49,18 @@ vi.mock("../store", () => ({
   initStore: vi.fn(),
 }));
 
+const { mockLogger } = vi.hoisted(() => ({
+  mockLogger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+vi.mock("../logger", () => ({
+  default: mockLogger,
+}));
+
 // Mock fs so we don't touch the real filesystem
 vi.mock("fs", () => ({
   default: {
@@ -59,10 +71,12 @@ vi.mock("fs", () => ({
 // Mock chokidar — we capture the 'add' and 'change' handlers and call them manually in tests
 let capturedAddHandler: ((filePath: string) => void) | null = null;
 let capturedChangeHandler: ((filePath: string) => void) | null = null;
+let capturedErrorHandler: ((error: unknown) => void) | null = null;
 const mockWatcherInstance = {
   on: vi.fn((event: string, handler: (fp: string) => void) => {
     if (event === "add") capturedAddHandler = handler;
     if (event === "change") capturedChangeHandler = handler;
+    if (event === "error") capturedErrorHandler = handler as unknown as (error: unknown) => void;
     return mockWatcherInstance;
   }),
   close: vi.fn(),
@@ -177,6 +191,8 @@ describe("startWatcher / stopWatcher", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedAddHandler = null;
+    capturedChangeHandler = null;
+    capturedErrorHandler = null;
     stopWatcher();
   });
 
@@ -304,6 +320,17 @@ describe("startWatcher / stopWatcher", () => {
     // No item should be created since we stopped before the timer fired
     expect(upsertQueueItem).not.toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it("logs watcher errors through structured logger", () => {
+    const win = makeFakeWindow();
+    startWatcher(win, mockSettings);
+
+    capturedErrorHandler!(new Error("watch failure"));
+
+    expect(mockLogger.error).toHaveBeenCalledWith("[fileWatcher] watcher error", {
+      error: "watch failure",
+    });
   });
 });
 
