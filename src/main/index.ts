@@ -30,6 +30,7 @@ import {
   resolveConfirmation,
 } from "./deletionEngine";
 import { initUpdater, registerUpdateHandlers, stopUpdater, checkForUpdatesNow } from "./updater";
+import log from "./logger";
 
 // ─── Quit flag ────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@ let isQuitting = false;
 // ─── Dev mode ─────────────────────────────────────────────────────────────────
 
 const isDev = !app.isPackaged;
+log.info("[main] app startup", { isDev, version: app.getVersion() });
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
 
 // ─── Startup helper ───────────────────────────────────────────────────────────
 
@@ -188,6 +195,7 @@ function withGuard<T>(
   fn: () => T | Promise<T>,
 ): T | Promise<T> | { success: false; error: string } {
   if (pendingOps.has(key)) {
+    log.warn("[main] ipc guard blocked duplicate operation", { key });
     return { success: false, error: "Operation already in progress" };
   }
   pendingOps.add(key);
@@ -196,10 +204,22 @@ function withGuard<T>(
     result = fn();
   } catch (err) {
     pendingOps.delete(key);
+    log.error("[main] ipc handler threw", {
+      key,
+      error: getErrorMessage(err),
+    });
     throw err;
   }
   if (result instanceof Promise) {
-    return result.finally(() => pendingOps.delete(key));
+    return result
+      .catch((error) => {
+        log.error("[main] ipc handler rejected", {
+          key,
+          error: getErrorMessage(error),
+        });
+        throw error;
+      })
+      .finally(() => pendingOps.delete(key));
   }
   pendingOps.delete(key);
   return result;
@@ -299,48 +319,61 @@ function registerIpcHandlers(): void {
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
+  log.warn("[main] single instance lock not acquired, quitting");
   app.quit();
 } else {
   app.on("second-instance", () => {
+    log.info("[main] second instance attempted; focusing existing window");
     mainWindow?.show();
     mainWindow?.focus();
   });
 }
 
-app.whenReady().then(async () => {
-  await initStore();
-  applyStartupSetting(getSettings().launchAtStartup);
-  await initDeletionEngine();
+app
+  .whenReady()
+  .then(async () => {
+    log.info("[main] app ready; initialising services");
+    await initStore();
+    applyStartupSetting(getSettings().launchAtStartup);
+    await initDeletionEngine();
 
-  createMainWindow();
-  createTray();
-  registerIpcHandlers();
-  registerUpdateHandlers();
+    createMainWindow();
+    createTray();
+    registerIpcHandlers();
+    registerUpdateHandlers();
 
-  // Start auto-update checker (only in packaged builds)
-  if (!isDev && mainWindow) {
-    initUpdater(mainWindow);
-  }
+    // Start auto-update checker (only in packaged builds)
+    if (!isDev && mainWindow) {
+      initUpdater(mainWindow);
+      log.info("[main] updater initialised");
+    }
 
-  // Wire up the unlink cancel callback to avoid circular imports
-  setUnlinkCancelFn((itemId) => cancelItem(itemId));
+    // Wire up the unlink cancel callback to avoid circular imports
+    setUnlinkCancelFn((itemId) => cancelItem(itemId));
 
-  if (mainWindow) {
-    pruneQueue(7, 500);
-    reconcileOnStartup(mainWindow);
-    startWatcher(mainWindow, getSettings());
-  }
-});
+    if (mainWindow) {
+      pruneQueue(7, 500);
+      reconcileOnStartup(mainWindow);
+      startWatcher(mainWindow, getSettings());
+      log.info("[main] startup reconciliation complete");
+    }
+  })
+  .catch((error) => {
+    log.error("[main] startup failed", { error: getErrorMessage(error) });
+    app.quit();
+  });
 
 app.on("window-all-closed", () => {
   // No-op: keep app alive in tray — don't call app.quit()
 });
 
 app.on("activate", () => {
+  log.info("[main] app activate event");
   mainWindow?.show();
 });
 
 app.on("before-quit", () => {
+  log.info("[main] app quit requested");
   cancelAllJobs();
   stopWatcher();
   stopUpdater();

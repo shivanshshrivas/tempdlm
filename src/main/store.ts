@@ -1,5 +1,6 @@
 import { app } from "electron";
 import { type QueueItem, type UserSettings } from "../shared/types";
+import log from "./logger";
 
 // electron-store v11 is ESM-only, so we use a dynamic import at module level
 // and expose a sync-style API after initialisation.
@@ -42,28 +43,40 @@ let _store: any = null;
 // Populated on initStore(); kept in sync by saveQueue() (write-through).
 let _queueCache: QueueItem[] | null = null;
 
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 /**
  * Must be called once before any other store function, after `app.whenReady()`.
  */
 export async function initStore(): Promise<void> {
-  // Dynamic import required for ESM-only electron-store
-  const { default: Store } = await import("electron-store");
+  try {
+    // Dynamic import required for ESM-only electron-store
+    const { default: Store } = await import("electron-store");
 
-  _store = new Store<StoreSchema>({
-    name: "tempdlm",
-    defaults: {
-      queue: [],
-      settings: defaultSettings(),
-    },
-    // Migrate old schemas forward if needed in future versions
-    migrations: {},
-  });
+    _store = new Store<StoreSchema>({
+      name: "tempdlm",
+      defaults: {
+        queue: [],
+        settings: defaultSettings(),
+      },
+      // Migrate old schemas forward if needed in future versions
+      migrations: {},
+    });
 
-  _queueCache = _store.get("queue", []) as QueueItem[];
+    _queueCache = _store.get("queue", []) as QueueItem[];
+    log.info("[store] initialised", { queueSize: _queueCache.length });
+  } catch (error) {
+    log.error("[store] failed to initialise", { error: getErrorMessage(error) });
+    throw error;
+  }
 }
 
 function assertInitialised(): void {
   if (!_store) {
+    log.error("[store] attempted to use store before init");
     throw new Error("Store not initialised - call initStore() first");
   }
 }
@@ -78,7 +91,12 @@ export function getQueue(): QueueItem[] {
   assertInitialised();
   if (_queueCache !== null) return _queueCache;
   // Defensive fallback - should only happen if initStore() was bypassed
-  _queueCache = _store.get("queue", []) as QueueItem[];
+  try {
+    _queueCache = _store.get("queue", []) as QueueItem[];
+  } catch (error) {
+    log.error("[store] failed to read queue", { error: getErrorMessage(error) });
+    throw error;
+  }
   return _queueCache;
 }
 
@@ -88,8 +106,16 @@ export function getQueue(): QueueItem[] {
  */
 export function saveQueue(queue: QueueItem[]): void {
   assertInitialised();
-  _store.set("queue", queue);
-  _queueCache = [...queue];
+  try {
+    _store.set("queue", queue);
+    _queueCache = [...queue];
+  } catch (error) {
+    log.error("[store] failed to write queue", {
+      queueSize: queue.length,
+      error: getErrorMessage(error),
+    });
+    throw error;
+  }
 }
 
 function isPrunableStatus(status: QueueItem["status"]): boolean {
@@ -200,7 +226,12 @@ export function _resetQueueCache(): void {
  */
 export function getSettings(): UserSettings {
   assertInitialised();
-  return _store.get("settings", defaultSettings()) as UserSettings;
+  try {
+    return _store.get("settings", defaultSettings()) as UserSettings;
+  } catch (error) {
+    log.error("[store] failed to read settings", { error: getErrorMessage(error) });
+    throw error;
+  }
 }
 
 /**
@@ -209,7 +240,12 @@ export function getSettings(): UserSettings {
  */
 export function saveSettings(settings: UserSettings): void {
   assertInitialised();
-  _store.set("settings", settings);
+  try {
+    _store.set("settings", settings);
+  } catch (error) {
+    log.error("[store] failed to write settings", { error: getErrorMessage(error) });
+    throw error;
+  }
 }
 
 /**
