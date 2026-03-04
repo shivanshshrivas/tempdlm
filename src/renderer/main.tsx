@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { applyTheme } from "./utils/theme";
 
 const root = document.getElementById("root");
@@ -12,7 +13,9 @@ window.tempdlm.getSettings().then((settings) => {
   applyTheme(settings.theme);
   createRoot(root).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   );
 });
