@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 
-function ThrowingChild() {
+function ThrowingChild(): never {
   throw new Error("Boom from child");
 }
 
