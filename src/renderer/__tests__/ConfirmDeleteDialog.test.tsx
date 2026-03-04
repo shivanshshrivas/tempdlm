@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ConfirmDeleteDialog from "../components/ConfirmDeleteDialog";
 import { type ConfirmDeletePayload, type QueueItem } from "../../shared/types";
@@ -121,6 +121,56 @@ describe("ConfirmDeleteDialog", () => {
       const deleteBtn = screen.getByText("Delete anyway");
       await userEvent.click(deleteBtn);
       await userEvent.click(deleteBtn);
+
+      expect(mockConfirmDeleteResponse).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("keyboard shortcuts", () => {
+    it("pressing D sends delete decision", () => {
+      const onDismiss = vi.fn();
+      render(<ConfirmDeleteDialog payload={makePayload()} onDismiss={onDismiss} />);
+
+      fireEvent.keyDown(window, { key: "d" });
+
+      expect(mockConfirmDeleteResponse).toHaveBeenCalledWith({
+        itemId: "confirm-item-1",
+        decision: "delete",
+      });
+      expect(onDismiss).toHaveBeenCalled();
+    });
+
+    it("pressing K sends keep decision", () => {
+      const onDismiss = vi.fn();
+      render(<ConfirmDeleteDialog payload={makePayload()} onDismiss={onDismiss} />);
+
+      fireEvent.keyDown(window, { key: "k" });
+
+      expect(mockConfirmDeleteResponse).toHaveBeenCalledWith({
+        itemId: "confirm-item-1",
+        decision: "keep",
+      });
+      expect(onDismiss).toHaveBeenCalled();
+    });
+
+    it("pressing Escape sends keep decision", () => {
+      const onDismiss = vi.fn();
+      render(<ConfirmDeleteDialog payload={makePayload()} onDismiss={onDismiss} />);
+
+      fireEvent.keyDown(window, { key: "Escape" });
+
+      expect(mockConfirmDeleteResponse).toHaveBeenCalledWith({
+        itemId: "confirm-item-1",
+        decision: "keep",
+      });
+      expect(onDismiss).toHaveBeenCalled();
+    });
+
+    it("prevents double-submission on repeated keyboard shortcuts", () => {
+      render(<ConfirmDeleteDialog payload={makePayload()} onDismiss={vi.fn()} />);
+
+      fireEvent.keyDown(window, { key: "d" });
+      fireEvent.keyDown(window, { key: "d" });
 
       expect(mockConfirmDeleteResponse).toHaveBeenCalledTimes(1);
     });

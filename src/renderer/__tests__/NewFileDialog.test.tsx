@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import NewFileDialog from "../components/NewFileDialog";
 import { type QueueItem } from "../../shared/types";
@@ -108,6 +108,72 @@ describe("NewFileDialog", () => {
         itemId: "test-item-1",
         minutes: 1440,
       });
+    });
+  });
+
+  describe("keyboard shortcuts", () => {
+    it.each([
+      { key: "1", minutes: 5 },
+      { key: "2", minutes: 30 },
+      { key: "3", minutes: 120 },
+      { key: "4", minutes: 1440 },
+    ])("pressing $key sets a $minutes-minute preset", async ({ key, minutes }) => {
+      render(<NewFileDialog item={makeItem()} onDismiss={vi.fn()} />);
+      fireEvent.keyDown(window, { key });
+      await waitFor(() =>
+        expect(mockSetTimer).toHaveBeenCalledWith({
+          itemId: "test-item-1",
+          minutes,
+        }),
+      );
+    });
+
+    it("pressing N sets timer to Never", async () => {
+      render(<NewFileDialog item={makeItem()} onDismiss={vi.fn()} />);
+      fireEvent.keyDown(window, { key: "n" });
+      await waitFor(() =>
+        expect(mockSetTimer).toHaveBeenCalledWith({
+          itemId: "test-item-1",
+          minutes: null,
+        }),
+      );
+    });
+
+    it("pressing C opens and focuses custom amount input", async () => {
+      render(<NewFileDialog item={makeItem()} onDismiss={vi.fn()} />);
+      fireEvent.keyDown(window, { key: "c" });
+      const amountInput = await screen.findByLabelText("Custom duration amount");
+      await waitFor(() => expect(amountInput).toHaveFocus());
+    });
+
+    it("pressing Enter submits custom timer when custom panel is visible", async () => {
+      render(<NewFileDialog item={makeItem()} onDismiss={vi.fn()} />);
+      await userEvent.click(screen.getByText("Custom…"));
+      await userEvent.type(screen.getByLabelText("Custom duration amount"), "25");
+      fireEvent.keyDown(window, { key: "Enter" });
+      await waitFor(() =>
+        expect(mockSetTimer).toHaveBeenCalledWith({
+          itemId: "test-item-1",
+          minutes: 25,
+        }),
+      );
+    });
+
+    it("pressing Escape dismisses the dialog", () => {
+      const onDismiss = vi.fn();
+      render(<NewFileDialog item={makeItem()} onDismiss={onDismiss} />);
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(onDismiss).toHaveBeenCalledTimes(1);
+      expect(mockSetTimer).not.toHaveBeenCalled();
+    });
+
+    it("ignores preset shortcuts while typing in custom input", async () => {
+      render(<NewFileDialog item={makeItem()} onDismiss={vi.fn()} />);
+      await userEvent.click(screen.getByText("Custom…"));
+      const amountInput = screen.getByLabelText("Custom duration amount");
+      amountInput.focus();
+      fireEvent.keyDown(amountInput, { key: "1" });
+      expect(mockSetTimer).not.toHaveBeenCalled();
     });
   });
 
