@@ -71,6 +71,13 @@ export interface UpdateProgress {
   total: number;
 }
 
+// ─── IPC Result ───────────────────────────────────────────────────────────────
+/**
+ * Standard discriminated-union response type for IPC invoke handlers.
+ * @template T - Success payload shape. Defaults to void for command-style IPC.
+ */
+export type IpcResult<T = void> = { success: true; data: T } | { success: false; error: string };
+
 // ─── IPC Channels ────────────────────────────────────────────────────────────
 
 // Main → Renderer events

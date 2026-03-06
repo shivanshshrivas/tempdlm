@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import {
   IPC_EVENTS,
   IPC_INVOKE,
+  type IpcResult,
   type QueueItem,
   type UserSettings,
   type SetTimerPayload,
@@ -16,63 +17,70 @@ import {
 // ─── Exposed API ──────────────────────────────────────────────────────────────
 // This is the only surface the renderer can access from Node/Electron.
 
+function unwrapIpcResult<T>(res: IpcResult<T>): T {
+  if (!res.success) {
+    throw new Error(res.error ?? "Unknown IPC error");
+  }
+  return res.data;
+}
+
 const api = {
   // ── Queries ────────────────────────────────────────────────────────────────
 
   getQueue: async (): Promise<QueueItem[]> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.QUEUE_GET);
-    return res.data as QueueItem[];
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.QUEUE_GET)) as IpcResult<QueueItem[]>;
+    return unwrapIpcResult(res);
   },
 
   getSettings: async (): Promise<UserSettings> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.SETTINGS_GET);
-    return res.data as UserSettings;
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.SETTINGS_GET)) as IpcResult<UserSettings>;
+    return unwrapIpcResult(res);
   },
 
   // ── Commands ───────────────────────────────────────────────────────────────
 
   setTimer: async (payload: SetTimerPayload): Promise<void> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_SET_TIMER, payload);
-    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.FILE_SET_TIMER, payload)) as IpcResult;
+    unwrapIpcResult(res);
   },
 
   cancelItem: async (payload: CancelPayload): Promise<void> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_CANCEL, payload);
-    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.FILE_CANCEL, payload)) as IpcResult;
+    unwrapIpcResult(res);
   },
 
   snoozeItem: async (payload: SnoozePayload): Promise<void> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_SNOOZE, payload);
-    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.FILE_SNOOZE, payload)) as IpcResult;
+    unwrapIpcResult(res);
   },
 
-  updateSettings: async (
-    settings: Partial<UserSettings>,
-  ): Promise<{ success: boolean; error?: string }> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.SETTINGS_UPDATE, settings);
-    return res as { success: boolean; error?: string };
+  updateSettings: async (settings: Partial<UserSettings>): Promise<IpcResult<UserSettings>> => {
+    return (await ipcRenderer.invoke(
+      IPC_INVOKE.SETTINGS_UPDATE,
+      settings,
+    )) as IpcResult<UserSettings>;
   },
 
   removeItem: async (payload: { itemId: string }): Promise<void> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_REMOVE, payload);
-    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.FILE_REMOVE, payload)) as IpcResult;
+    unwrapIpcResult(res);
   },
 
   confirmDeleteResponse: async (payload: ConfirmResponsePayload): Promise<void> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.FILE_CONFIRM_RESPONSE, payload);
-    if (!res.success) throw new Error(res.error ?? "Unknown IPC error");
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.FILE_CONFIRM_RESPONSE, payload)) as IpcResult;
+    unwrapIpcResult(res);
   },
 
   pickFolder: async (): Promise<string | null> => {
-    const res = await ipcRenderer.invoke("dialog:pick-folder");
-    return res.data as string | null;
+    const res = (await ipcRenderer.invoke("dialog:pick-folder")) as IpcResult<string | null>;
+    return unwrapIpcResult(res);
   },
 
   // ── Update commands ─────────────────────────────────────────────────────────
 
   getAppVersion: async (): Promise<string> => {
-    const res = await ipcRenderer.invoke(IPC_INVOKE.APP_GET_VERSION);
-    return res.data as string;
+    const res = (await ipcRenderer.invoke(IPC_INVOKE.APP_GET_VERSION)) as IpcResult<string>;
+    return unwrapIpcResult(res);
   },
 
   checkForUpdate: (): Promise<void> => ipcRenderer.invoke(IPC_INVOKE.UPDATE_CHECK),

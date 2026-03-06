@@ -83,6 +83,9 @@
     "vite-plugin-electron-renderer": "^0.14.6",
     "vitest": "^4.0.18"
   },
+  "overrides": {
+    "tar": "^7.5.10"
+  },
   "build": {
     "appId": "com.tempdlm.app",
     "productName": "TempDLM",

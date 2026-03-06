@@ -3,11 +3,13 @@ import path from "path";
 import {
   IPC_EVENTS,
   IPC_INVOKE,
+  type QueueItem,
   type UserSettings,
   type SetTimerPayload,
   type CancelPayload,
   type SnoozePayload,
   type ConfirmResponsePayload,
+  type IpcResult,
 } from "../shared/types";
 import { validateSettingsPatch } from "./settingsValidator";
 import {
@@ -228,81 +230,93 @@ function withGuard<T>(
 // ─── IPC handlers ─────────────────────────────────────────────────────────────
 
 function registerIpcHandlers(): void {
-  ipcMain.handle(IPC_INVOKE.QUEUE_GET, () => {
+  ipcMain.handle(IPC_INVOKE.QUEUE_GET, async (): Promise<IpcResult<QueueItem[]>> => {
     return { success: true, data: getQueue() };
   });
 
-  ipcMain.handle(IPC_INVOKE.SETTINGS_GET, () => {
+  ipcMain.handle(IPC_INVOKE.SETTINGS_GET, async (): Promise<IpcResult<UserSettings>> => {
     return { success: true, data: getSettings() };
   });
 
-  ipcMain.handle(IPC_INVOKE.SETTINGS_UPDATE, (_e, patch: Partial<UserSettings>) => {
-    return withGuard("settings:update", () => {
-      const validationError = validateSettingsPatch(patch);
-      if (validationError) {
-        return { success: false, error: validationError };
-      }
+  ipcMain.handle(
+    IPC_INVOKE.SETTINGS_UPDATE,
+    async (_e, patch: Partial<UserSettings>): Promise<IpcResult<UserSettings>> => {
+      return withGuard<IpcResult<UserSettings>>("settings:update", () => {
+        const validationError = validateSettingsPatch(patch);
+        if (validationError) {
+          return { success: false, error: validationError };
+        }
 
-      const prev = getSettings();
-      const updated = patchSettings(patch);
+        const prev = getSettings();
+        const updated = patchSettings(patch);
 
-      // Restart watcher if the downloads folder changed
-      if (mainWindow && patch.downloadsFolder && patch.downloadsFolder !== prev.downloadsFolder) {
-        stopWatcher();
-        startWatcher(mainWindow, updated);
-      }
+        // Restart watcher if the downloads folder changed
+        if (mainWindow && patch.downloadsFolder && patch.downloadsFolder !== prev.downloadsFolder) {
+          stopWatcher();
+          startWatcher(mainWindow, updated);
+        }
 
-      if (patch.launchAtStartup !== undefined) {
-        applyStartupSetting(patch.launchAtStartup);
-      }
+        if (patch.launchAtStartup !== undefined) {
+          applyStartupSetting(patch.launchAtStartup);
+        }
 
-      refreshTrayMenu();
-      return { success: true, data: updated };
-    });
-  });
+        refreshTrayMenu();
+        return { success: true, data: updated };
+      });
+    },
+  );
 
-  ipcMain.handle(IPC_INVOKE.FILE_SET_TIMER, (_e, payload: SetTimerPayload) => {
-    return withGuard(`file:set-timer:${payload.itemId}`, () => {
-      if (!mainWindow) return { success: false, error: "Window not available" };
-      const item = getQueueItem(payload.itemId);
-      if (!item) return { success: false, error: "Item not found" };
-      scheduleItem(item, payload.minutes, mainWindow);
-      mainWindow.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
-      refreshTrayMenu();
-      return { success: true };
-    });
-  });
+  ipcMain.handle(
+    IPC_INVOKE.FILE_SET_TIMER,
+    async (_e, payload: SetTimerPayload): Promise<IpcResult> => {
+      return withGuard<IpcResult>(`file:set-timer:${payload.itemId}`, () => {
+        if (!mainWindow) return { success: false, error: "Window not available" };
+        const item = getQueueItem(payload.itemId);
+        if (!item) return { success: false, error: "Item not found" };
+        scheduleItem(item, payload.minutes, mainWindow);
+        mainWindow.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+        refreshTrayMenu();
+        return { success: true, data: undefined };
+      });
+    },
+  );
 
-  ipcMain.handle(IPC_INVOKE.FILE_CANCEL, (_e, payload: CancelPayload) => {
+  ipcMain.handle(IPC_INVOKE.FILE_CANCEL, async (_e, payload: CancelPayload): Promise<IpcResult> => {
     cancelItem(payload.itemId);
     mainWindow?.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
     refreshTrayMenu();
-    return { success: true };
+    return { success: true, data: undefined };
   });
 
-  ipcMain.handle(IPC_INVOKE.FILE_SNOOZE, (_e, payload: SnoozePayload) => {
-    return withGuard(`file:snooze:${payload.itemId}`, () => {
+  ipcMain.handle(IPC_INVOKE.FILE_SNOOZE, async (_e, payload: SnoozePayload): Promise<IpcResult> => {
+    return withGuard<IpcResult>(`file:snooze:${payload.itemId}`, () => {
       if (!mainWindow) return { success: false, error: "Window not available" };
       snoozeItem(payload.itemId, mainWindow);
       mainWindow.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
       refreshTrayMenu();
-      return { success: true };
+      return { success: true, data: undefined };
     });
   });
 
-  ipcMain.handle(IPC_INVOKE.FILE_REMOVE, (_e, payload: { itemId: string }) => {
-    removeQueueItem(payload.itemId);
-    mainWindow?.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
-    refreshTrayMenu();
-    return { success: true };
-  });
+  ipcMain.handle(
+    IPC_INVOKE.FILE_REMOVE,
+    async (_e, payload: { itemId: string }): Promise<IpcResult> => {
+      removeQueueItem(payload.itemId);
+      mainWindow?.webContents.send(IPC_EVENTS.QUEUE_UPDATED, getQueue());
+      refreshTrayMenu();
+      return { success: true, data: undefined };
+    },
+  );
 
-  ipcMain.handle(IPC_INVOKE.FILE_CONFIRM_RESPONSE, (_e, payload: ConfirmResponsePayload) => {
-    resolveConfirmation(payload.itemId, payload.decision);
-    return { success: true };
-  });
+  ipcMain.handle(
+    IPC_INVOKE.FILE_CONFIRM_RESPONSE,
+    async (_e, payload: ConfirmResponsePayload): Promise<IpcResult> => {
+      resolveConfirmation(payload.itemId, payload.decision);
+      return { success: true, data: undefined };
+    },
+  );
 
-  ipcMain.handle("dialog:pick-folder", async () => {
+  ipcMain.handle("dialog:pick-folder", async (): Promise<IpcResult<string | null>> => {
     const result = await dialog.showOpenDialog({
       properties: ["openDirectory"],
       title: "Select Downloads Folder",
@@ -310,7 +324,7 @@ function registerIpcHandlers(): void {
     return { success: true, data: result.canceled ? null : result.filePaths[0] };
   });
 
-  ipcMain.handle(IPC_INVOKE.APP_GET_VERSION, () => {
+  ipcMain.handle(IPC_INVOKE.APP_GET_VERSION, async (): Promise<IpcResult<string>> => {
     return { success: true, data: app.getVersion() };
   });
 }
