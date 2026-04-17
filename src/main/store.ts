@@ -12,6 +12,17 @@ interface StoreSchema {
   settings: UserSettings;
 }
 
+// Structural type covering only the electron-store methods used in this file.
+// Avoids depending on `conf`'s types resolving under moduleResolution: node.
+interface StoreInstance {
+  get<K extends keyof StoreSchema>(key: K): StoreSchema[K];
+  get<K extends keyof StoreSchema>(
+    key: K,
+    defaultValue: Required<StoreSchema>[K],
+  ): Required<StoreSchema>[K];
+  set<K extends keyof StoreSchema>(key: K, value: StoreSchema[K]): void;
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const PRUNE_STATUSES: QueueItem["status"][] = ["deleted", "failed", "never", "whitelisted"];
@@ -36,8 +47,7 @@ function defaultSettings(): UserSettings {
 
 // ─── Internal store instance ─────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _store: any = null;
+let _store: StoreInstance | null = null;
 
 // In-memory cache - avoids full disk reads on every getQueue() call.
 // Populated on initStore(); kept in sync by saveQueue() (write-through).
@@ -64,9 +74,9 @@ export async function initStore(): Promise<void> {
       },
       // Migrate old schemas forward if needed in future versions
       migrations: {},
-    });
+    }) as unknown as StoreInstance;
 
-    _queueCache = _store.get("queue", []) as QueueItem[];
+    _queueCache = _store.get("queue", []);
     log.info("[store] initialised", { queueSize: _queueCache.length });
   } catch (error) {
     log.error("[store] failed to initialise", { error: getErrorMessage(error) });
@@ -92,12 +102,12 @@ export function getQueue(): QueueItem[] {
   if (_queueCache !== null) return _queueCache;
   // Defensive fallback - should only happen if initStore() was bypassed
   try {
-    _queueCache = _store.get("queue", []) as QueueItem[];
+    _queueCache = _store!.get("queue", []);
   } catch (error) {
     log.error("[store] failed to read queue", { error: getErrorMessage(error) });
     throw error;
   }
-  return _queueCache;
+  return _queueCache!;
 }
 
 /**
@@ -107,7 +117,7 @@ export function getQueue(): QueueItem[] {
 export function saveQueue(queue: QueueItem[]): void {
   assertInitialised();
   try {
-    _store.set("queue", queue);
+    _store!.set("queue", queue);
     _queueCache = [...queue];
   } catch (error) {
     log.error("[store] failed to write queue", {
@@ -227,7 +237,7 @@ export function _resetQueueCache(): void {
 export function getSettings(): UserSettings {
   assertInitialised();
   try {
-    return _store.get("settings", defaultSettings()) as UserSettings;
+    return _store!.get("settings", defaultSettings());
   } catch (error) {
     log.error("[store] failed to read settings", { error: getErrorMessage(error) });
     throw error;
@@ -241,7 +251,7 @@ export function getSettings(): UserSettings {
 export function saveSettings(settings: UserSettings): void {
   assertInitialised();
   try {
-    _store.set("settings", settings);
+    _store!.set("settings", settings);
   } catch (error) {
     log.error("[store] failed to write settings", { error: getErrorMessage(error) });
     throw error;
