@@ -1,4 +1,5 @@
 import { app } from "electron";
+import type ElectronStore from "electron-store";
 import { type QueueItem, type UserSettings } from "../shared/types";
 import log from "./logger";
 
@@ -36,8 +37,7 @@ function defaultSettings(): UserSettings {
 
 // ─── Internal store instance ─────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _store: any = null;
+let _store: ElectronStore<StoreSchema> | null = null;
 
 // In-memory cache - avoids full disk reads on every getQueue() call.
 // Populated on initStore(); kept in sync by saveQueue() (write-through).
@@ -64,9 +64,9 @@ export async function initStore(): Promise<void> {
       },
       // Migrate old schemas forward if needed in future versions
       migrations: {},
-    });
+    }) as unknown as ElectronStore<StoreSchema>;
 
-    _queueCache = _store.get("queue", []) as QueueItem[];
+    _queueCache = _store.get("queue", []);
     log.info("[store] initialised", { queueSize: _queueCache.length });
   } catch (error) {
     log.error("[store] failed to initialise", { error: getErrorMessage(error) });
@@ -92,7 +92,7 @@ export function getQueue(): QueueItem[] {
   if (_queueCache !== null) return _queueCache;
   // Defensive fallback - should only happen if initStore() was bypassed
   try {
-    _queueCache = _store.get("queue", []) as QueueItem[];
+    _queueCache = _store.get("queue", []);
   } catch (error) {
     log.error("[store] failed to read queue", { error: getErrorMessage(error) });
     throw error;
@@ -227,7 +227,7 @@ export function _resetQueueCache(): void {
 export function getSettings(): UserSettings {
   assertInitialised();
   try {
-    return _store.get("settings", defaultSettings()) as UserSettings;
+    return _store.get("settings", defaultSettings());
   } catch (error) {
     log.error("[store] failed to read settings", { error: getErrorMessage(error) });
     throw error;
