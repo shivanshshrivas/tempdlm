@@ -16,7 +16,10 @@ interface StoreSchema {
 // Avoids depending on `conf`'s types resolving under moduleResolution: node.
 interface StoreInstance {
   get<K extends keyof StoreSchema>(key: K): StoreSchema[K];
-  get<K extends keyof StoreSchema>(key: K, defaultValue: Required<StoreSchema>[K]): Required<StoreSchema>[K];
+  get<K extends keyof StoreSchema>(
+    key: K,
+    defaultValue: Required<StoreSchema>[K],
+  ): Required<StoreSchema>[K];
   set<K extends keyof StoreSchema>(key: K, value: StoreSchema[K]): void;
 }
 
